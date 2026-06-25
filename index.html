@@ -399,7 +399,11 @@ const SFX=(()=>{
 })();
 addEventListener('pointerdown',()=>{ SFX.init(); SFX.resume(); });
 addEventListener('keydown',()=>{ SFX.init(); SFX.resume(); });
-if('serviceWorker' in navigator){ addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+if('serviceWorker' in navigator){
+  let _swReloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(_swReloaded)return; _swReloaded=true; location.reload(); }); // auto-load new version
+  addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(r=>{ try{r.update();}catch(e){} }).catch(()=>{}));
+}
 const WORLD={w:2600,h:2600};
 const SCORES_URL='https://survive-the-horde-default-rtdb.firebaseio.com/scores'; // global leaderboard (declared early — used at load)
 const CX=WORLD.w/2, CY=WORLD.h/2;
