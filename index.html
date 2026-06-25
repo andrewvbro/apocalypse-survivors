@@ -1795,10 +1795,24 @@ const dev={ open:false, god:false, infAmmo:false, oneShot:false, godGen:false };
 function devUnlocked(){ try{ return localStorage.getItem('apocsurv_dev')==='1'; }catch(e){ return false; } }
 function grantDev(){ try{ localStorage.setItem('apocsurv_dev','1'); }catch(e){} }
 function toggleAdmin(){
-  if(!devUnlocked()){ const code=prompt('Developer access code:'); if(code!==DEV_CODE){ if(code!=null) toast('Access denied'); return; } grantDev(); toast('🛠 Developer mode unlocked'); }
   dev.open=!dev.open; const el=$('admin'); el.style.display=dev.open?'block':'none'; if(dev.open) renderAdmin();
 }
 function renderAdmin(){
+  // not unlocked yet → show an inline password field (no prompt(), works everywhere)
+  if(!devUnlocked()){
+    $('admin').innerHTML=`<div class="ahead">🛠 DEV PANEL<span data-act="close" class="aclose">✕</span></div>
+      <div class="agrp">Developer access</div>
+      <input id="devCodeInput" type="password" placeholder="access code" autocomplete="off"
+        style="width:100%;background:#0e120b;border:1px solid #2e466a;color:#cfe;border-radius:6px;padding:7px;margin:3px 0;font-family:inherit">
+      <button class="abtn" id="devUnlockBtn">Unlock</button>
+      <div class="ahint">enter the dev code to continue</div>`;
+    $('admin').querySelector('.aclose').onclick=()=>{ dev.open=false; $('admin').style.display='none'; };
+    const go=()=>{ const v=($('devCodeInput').value||'').trim(); if(v===DEV_CODE){ grantDev(); toast('🛠 Developer mode unlocked'); renderAdmin(); } else toast('Access denied'); };
+    $('devUnlockBtn').onclick=go;
+    $('devCodeInput').addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') go(); });
+    setTimeout(()=>{ try{$('devCodeInput').focus();}catch(e){} },0);
+    return;
+  }
   const tog=(label,key)=>`<button class="abtn${dev[key]?' on':''}" data-tog="${key}">${label}: <b>${dev[key]?'ON':'OFF'}</b></button>`;
   const act=(label,id)=>`<button class="abtn" data-act="${id}">${label}</button>`;
   $('admin').innerHTML=`<div class="ahead">🛠 DEV PANEL<span data-act="close" class="aclose">✕</span></div>
