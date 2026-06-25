@@ -529,7 +529,7 @@ const me={ id:'me', name:'Survivor', cls:'soldier', x:WORLD.w/2, y:WORLD.h/2, vx
   stamina:100, maxStamina:100, sprintLock:0, builtCount:0,
   scrap:0, xp:0, level:1, xpNext:60, skillPoints:0, skills:{},
   dmgMul:1, speedMul:1, reloadMul:1, cdMul:1, gainMul:1,
-  guns:[], gunIdx:0, lastShot:0, reloading:0, last:now() };
+  guns:[], stash:[], gunIdx:0, lastShot:0, reloading:0, last:now() };
 let players={};       // remote players by id
 let bots=[];          // local AI allies (host only spawns; everyone simulates own for solo)
 let zombies=[];       // host authoritative
@@ -672,7 +672,7 @@ function startGame(opts){
   diff=parseFloat($('diffSelect').value); botCount=parseInt($('botSelect').value); hardMode=diff>=1.8;
   applyClass();
   me.x=CX+rand(-40,40); me.y=CY+150; me.alive=true; me.dead=false; me.downed=false; me.cash=hardMode?80:150; me.kills=0;
-  me.stamina=me.maxStamina; buildMode=false; structures=[]; hazards=[]; isBloodMoon=false; drones=[]; turrets=[]; repairDrones=[];
+  me.stamina=me.maxStamina; me.stash=[]; buildMode=false; structures=[]; hazards=[]; isBloodMoon=false; drones=[]; turrets=[]; repairDrones=[];
   generator={x:CX,y:CY,hp:1500,maxhp:1500,r:30};
   me.scrap=0; const cp=loadClassProg(me.cls); me.level=cp.level; me.xp=cp.xp; me.xpNext=cp.xpNext; me.skillPoints=cp.sp; me.skills=Object.assign({},cp.skills); applySkills();
   me.abLevel=abilityLevel(me.cls);
@@ -1440,10 +1440,10 @@ function updatePickups(dt){
       else if(p.kind==='health'){ me.hp=clamp(me.hp+50,0,me.maxhp); toast('+50 HP'); }
       else if(p.kind==='scrap'){ const a=Math.round(8*me.gainMul); me.scrap+=a; toast('+'+a+' scrap'); }
       else if(p.kind==='weapon'){ const wt=p.wtype||'pistol'; const nm=(GUNS[wt]||{}).name||'Weapon';
-        const have=me.guns.find(g=>g.type===wt);
+        const have=me.guns.find(g=>g.type===wt)||me.stash.find(g=>g.type===wt);
         if(have){ have.ammo=have.spec.mag; have.reserve=Math.min((have.reserve||0)+have.spec.mag*2,(have.spec.reserve||0)*3); toast(nm+' — ammo refilled'); }
-        else if(me.guns.length<GUN_CAP){ me.guns.push(mkGun(wt)); me.gunIdx=me.guns.length-1; me.reloading=0; toast('Picked up '+nm+'!'); }
-        else { const slot=me.gunIdx>0?me.gunIdx:1; me.guns[slot]=mkGun(wt); me.gunIdx=slot; me.reloading=0; toast('Inventory full — swapped to '+nm); }
+        else if(me.guns.length<GUN_CAP){ me.guns.push(mkGun(wt)); me.gunIdx=me.guns.length-1; me.reloading=0; toast('Picked up '+nm+'! [equipped]'); }
+        else { me.stash.push(mkGun(wt)); toast('Picked up '+nm+' → stored (press I)'); }   // loadout full → keep it in storage
         refreshHotbar(); }
       if(p.kind==='scrap') SFX.scrap(); else if(p.kind==='weapon') SFX.reload(); else SFX.pickup();
       if(net) net.send({t:'pickup',pid:p.id});
@@ -1932,19 +1932,37 @@ function adminAct(a){ const m=loadMeta();
   refreshHud();
 }
 function renderPanel(id){ if(id==='skills') renderSkills(); else if(id==='upgrade') renderUpgrade(); else if(id==='inv') renderInventory(); }
+const GUN_ICON=g=>({melee:'🔪',shotgun:'🔫',autoshotgun:'🔫',sawedoff:'🔫',flak:'🔫',pistol:'🔫',revolver:'🔫',dualpistols:'🔫',flamer:'🔥',railgun:'⚡',plasma:'⚡'}[g.type]||'🔫');
+function gunRow(g,i,where){ const melee=g.spec.melee, eq=(where==='load'&&i===me.gunIdx);
+  const ammo=melee?'∞ melee':(g.ammo+' / '+(g.spec.reserve>2000?'∞':g.reserve));
+  const ups=melee?'':` <span class="det">⬆ dmg ${g.up.dmg} · rof ${g.up.rof} · mag ${g.up.mag}</span>`;
+  let btns='';
+  if(where==='load'){ btns=`<button class="buy" data-eq="${i}">${eq?'✓ held':'Hold'}</button>`+(melee?'':`<button class="buy" data-stash="${i}" style="border-color:#2e466a;color:#6fd6ff">▼ Store</button>`); }
+  else { btns=`<button class="buy" data-take="${i}">▲ Equip</button><button class="buy" data-toss="${i}" style="border-color:#5a2020;color:#d8453a;min-width:auto">✕</button>`; }
+  return `<div class="uprow"${eq?' style="border-color:var(--acc)"':''}><div class="si">${GUN_ICON(g)}</div>
+    <div class="sm"><div class="snm">${g.spec.name}${eq?' <span style="color:var(--acc)">[equipped]</span>':''}</div><div class="sd">${ammo}${ups}</div></div>
+    <div style="display:flex;gap:5px">${btns}</div></div>`;
+}
 function renderInventory(){
   $('invBox').innerHTML=`<h2>🎒 INVENTORY</h2>
-    <div class="ghead"><span>${me.guns.length}/${GUN_CAP} weapons · click to equip</span><span>Cash $${me.cash} · ⚙${me.scrap}</span></div>`
-    + me.guns.map((g,i)=>{ const eq=i===me.gunIdx, melee=g.spec.melee;
-        const ammo=melee?'∞ melee':(g.ammo+' / '+(g.spec.reserve>2000?'∞':g.reserve));
-        const ups=melee?'':` <span class="det">⬆ dmg ${g.up.dmg} · rof ${g.up.rof} · mag ${g.up.mag}</span>`;
-        return `<div class="uprow"${eq?' style="border-color:var(--acc)"':''}><div class="si">${{melee:'🔪',shotgun:'🔫',autoshotgun:'🔫',sawedoff:'🔫',flak:'🔫',pistol:'🔫',revolver:'🔫',dualpistols:'🔫',flamer:'🔥',railgun:'⚡',plasma:'⚡'}[g.type]||'🔫'}</div>
-          <div class="sm"><div class="snm">${g.spec.name}${eq?' <span style="color:var(--acc)">[equipped]</span>':''}</div><div class="sd">${ammo}${ups}</div></div>
-          <div style="display:flex;gap:5px"><button class="buy" data-eq="${i}">${eq?'✓':'Equip'}</button>${melee?'':`<button class="buy" data-drop="${i}" style="border-color:#5a2020;color:#d8453a;min-width:auto">✕</button>`}</div></div>`; }).join('')
-    + `<div class="closeRow"><button class="btn primary" onclick="closePanel()">Close (I)</button></div>`;
+    <div class="ghead"><span>Cash $${me.cash} · ⚙${me.scrap}</span><span>Loadout ${me.guns.length}/${GUN_CAP}</span></div>
+    <div class="agrp" style="color:var(--acc2)">▶ Loadout (hotbar 1–${GUN_CAP})</div>
+    ${me.guns.map((g,i)=>gunRow(g,i,'load')).join('')}
+    <div class="agrp" style="color:#6fd6ff">📦 Storage (${me.stash.length} stored)</div>
+    ${me.stash.length?me.stash.map((g,i)=>gunRow(g,i,'stash')).join(''):'<div class="empty" style="color:var(--mut);padding:8px">Empty — extra weapons you pick up are stored here.</div>'}
+    <div class="closeRow"><button class="btn primary" onclick="closePanel()">Close (I)</button></div>`;
   $('invBox').querySelectorAll('[data-eq]').forEach(b=>b.onclick=()=>{ switchGun(+b.dataset.eq); renderInventory(); });
-  $('invBox').querySelectorAll('[data-drop]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.drop; if(i>0&&i<me.guns.length){ me.guns.splice(i,1); if(me.gunIdx>=me.guns.length) me.gunIdx=me.guns.length-1; if(me.gunIdx<0)me.gunIdx=0; refreshHud(); refreshHotbar(); renderInventory(); } });
+  $('invBox').querySelectorAll('[data-stash]').forEach(b=>b.onclick=()=>stashWeapon(+b.dataset.stash));
+  $('invBox').querySelectorAll('[data-take]').forEach(b=>b.onclick=()=>equipFromStash(+b.dataset.take));
+  $('invBox').querySelectorAll('[data-toss]').forEach(b=>b.onclick=()=>{ me.stash.splice(+b.dataset.toss,1); renderInventory(); });
 }
+function stashWeapon(i){ if(i<=0||i>=me.guns.length) return; const g=me.guns[i]; me.guns.splice(i,1); me.stash.push(g);
+  if(me.gunIdx>=me.guns.length) me.gunIdx=me.guns.length-1; if(me.gunIdx<0) me.gunIdx=0;
+  refreshHud(); refreshHotbar(); renderInventory(); }
+function equipFromStash(i){ const g=me.stash[i]; if(!g) return;
+  if(me.guns.length<GUN_CAP){ me.stash.splice(i,1); me.guns.push(g); me.gunIdx=me.guns.length-1; }
+  else { const slot=me.gunIdx>0?me.gunIdx:1; const out=me.guns[slot]; me.guns[slot]=g; me.stash.splice(i,1); if(out&&!out.spec.melee) me.stash.push(out); me.gunIdx=slot; }
+  me.reloading=0; refreshHud(); refreshHotbar(); renderInventory(); }
 function renderSkills(){
   $('skillsBox').innerHTML=`<h2>★ SKILLS</h2>
     <div class="ghead"><span>Level <b>${me.level}</b> · XP ${Math.floor(me.xp)}/${me.xpNext}</span><span>Points: <b>${me.skillPoints}</b></span></div>`
@@ -2016,6 +2034,7 @@ function saveGame(){
   const d={ v:1, cls:me.cls, name:me.name, diff, botCount,
     hp:me.hp, cash:me.cash, scrap:me.scrap, xp:me.xp, level:me.level, xpNext:me.xpNext, skillPoints:me.skillPoints, skills:me.skills,
     gunIdx:me.gunIdx, guns:me.guns.map(g=>({type:g.type, up:g.up, mag:g.mag, ammo:g.ammo, reserve:g.reserve})),
+    stash:me.stash.map(g=>({type:g.type, up:g.up, mag:g.mag, ammo:g.ammo, reserve:g.reserve})),
     wave, survivalT, genHp:(generator?generator.hp:1500), structures: structures.map(s=>({key:s.key,x:s.x,y:s.y,hp:s.hp})) };
   try{ localStorage.setItem(SAVE_KEY, JSON.stringify(d)); }catch(e){}
 }
@@ -2026,7 +2045,9 @@ function continueGame(){
   applyClass();
   me.cash=d.cash||0; me.scrap=d.scrap||0; me.xp=d.xp||0; me.level=d.level||1; me.xpNext=d.xpNext||xpForLevel(me.level); me.skillPoints=d.skillPoints||0; me.skills=d.skills||{};
   applySkills(); me.abLevel=abilityLevel(me.cls); me.hp=clamp(d.hp||me.maxhp,1,me.maxhp);
-  if(d.guns&&d.guns.length){ me.guns=d.guns.map(sg=>{ const g=(sg.type==='melee')?mkGun('melee',MELEE):mkGun(sg.type); g.up=sg.up||{dmg:0,rof:0,mag:0}; if(sg.mag)g.mag=sg.mag; if(sg.ammo!=null)g.ammo=sg.ammo; if(sg.reserve!=null)g.reserve=sg.reserve; return g; }); }
+  const rebuildGun=sg=>{ const g=(sg.type==='melee')?mkGun('melee',MELEE):mkGun(sg.type); g.up=sg.up||{dmg:0,rof:0,mag:0}; if(sg.mag)g.mag=sg.mag; if(sg.ammo!=null)g.ammo=sg.ammo; if(sg.reserve!=null)g.reserve=sg.reserve; return g; };
+  if(d.guns&&d.guns.length){ me.guns=d.guns.map(rebuildGun); }
+  me.stash=(d.stash||[]).map(rebuildGun);
   me.gunIdx=d.gunIdx||0;
   structures=[]; (d.structures||[]).forEach(s=>{ placeStructure(s.key,s.x,s.y,me.id); const st=structures[structures.length-1]; if(st&&s.hp!=null) st.hp=s.hp; });
   wave=d.wave||0; survivalT=d.survivalT||0; lastDay=currentDay();
