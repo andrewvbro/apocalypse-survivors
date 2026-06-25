@@ -214,6 +214,22 @@
   #moveStick{left:24px;} #aimStick{right:24px;}
   #abilityBtn{position:absolute; right:170px; bottom:60px; width:74px;height:74px;border-radius:50%;
     background:rgba(58,160,216,.3); border:2px solid #6fd6ff; pointer-events:auto; display:flex;align-items:center;justify-content:center;font-size:24px;}
+  .mbtn{position:absolute; width:60px;height:60px;border-radius:50%; pointer-events:auto; display:flex;align-items:center;justify-content:center;font-size:24px; color:#fff; background:rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.32);}
+  #ultBtn{right:172px; bottom:150px; background:rgba(178,61,240,.34); border-color:#d98aff; display:none;}
+  #ultBtn.ready{animation:ultpulse 1.1s ease-in-out infinite;}
+  #reloadBtn{right:258px; bottom:60px;}
+  #buildBtn{right:258px; bottom:142px;}
+  /* phones / small screens */
+  @media (max-width:600px){
+    #menu h1{font-size:30px; letter-spacing:2px;}
+    #menu .tag{font-size:11px; margin-bottom:12px;}
+    .classgrid{grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:8px;}
+    .stick{width:106px;height:106px;bottom:16px;} .stick .nub{width:46px;height:46px;margin:-23px;}
+    #moveStick{left:16px;} #aimStick{right:16px;}
+    #abilityBtn{width:62px;height:62px;right:122px;bottom:44px;}
+    .mbtn{width:50px;height:50px;font-size:20px;}
+    #ultBtn{right:124px;bottom:118px;} #reloadBtn{right:188px;bottom:44px;} #buildBtn{right:188px;bottom:110px;}
+  }
 </style>
 </head>
 <body>
@@ -282,13 +298,16 @@
   <div class="stick" id="moveStick"><div class="nub"></div></div>
   <div class="stick" id="aimStick"><div class="nub"></div></div>
   <div id="abilityBtn">★</div>
+  <div id="ultBtn" class="mbtn">⚡</div>
+  <div id="reloadBtn" class="mbtn">🔄</div>
+  <div id="buildBtn" class="mbtn">🔨</div>
 </div>
 
 <!-- ===================== MENU ===================== -->
 <div id="menu">
   <h1>APOCALYPSE&nbsp;SURVIVORS</h1>
   <div class="tag">CO-OP TOP-DOWN SURVIVAL · CHOOSE YOUR CLASS · OUTLAST THE HORDE</div>
-  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 22 · 2026-06-25</div>
+  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 23 · 2026-06-25</div>
   <div style="margin-top:6px"><button id="menuResetBtn" style="background:#2a1414;border:1px solid #5a2a2a;color:#e7a; border-radius:6px;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">↺ Reset progress (Bio-Cores, classes, abilities)</button></div>
 
   <div class="panel" id="classPanel">
@@ -632,9 +651,10 @@ cvs.addEventListener('contextmenu',e=>e.preventDefault());
 
 // touch
 let touchMove={id:null,dx:0,dy:0}, touchAim={id:null,dx:0,dy:0,active:false};
+let _isTouch=('ontouchstart'in window)||navigator.maxTouchPoints>0;
 function setupTouch(){
-  const isTouch=('ontouchstart'in window)||navigator.maxTouchPoints>0;
-  if(!isTouch) return;
+  if(!_isTouch) return;
+  if(setupTouch._done){ $('mobileControls').style.display='block'; return; } setupTouch._done=true; // wire listeners once
   $('mobileControls').style.display='block';
   const mv=$('moveStick'), am=$('aimStick'), mvN=mv.querySelector('.nub'), amN=am.querySelector('.nub');
   function stick(el,nub,store,onEnd){
@@ -645,7 +665,11 @@ function setupTouch(){
       const m=Math.hypot(dx,dy)||1, cl=Math.min(m,52); dx=dx/m*cl; dy=dy/m*cl; nub.style.transform=`translate(${dx}px,${dy}px)`; store.dx=dx/52; store.dy=dy/52; if(store===touchAim) store.active=true; }
   }
   stick(mv,mvN,touchMove); stick(am,amN,touchAim,()=>touchAim.active=false);
-  $('abilityBtn').addEventListener('touchstart',e=>{e.preventDefault(); useAbility();},{passive:false});
+  const tap=(id,fn)=>{ const el=$(id); if(el) el.addEventListener('touchstart',e=>{e.preventDefault(); fn();},{passive:false}); };
+  tap('abilityBtn',useAbility);
+  tap('ultBtn',useAbility2);
+  tap('reloadBtn',reload);
+  tap('buildBtn',toggleBuild);
 }
 
 // =====================================================================
@@ -704,7 +728,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshC
 addEventListener('focus',()=>refreshCores());
 addEventListener('load',()=>refreshCores()); // re-sync the saved Bio-Cores total once everything's initialized (guards against a stale 0 at first paint)
 // build badge shows actual saved data, so stale-cache vs data issues are diagnosable at a glance
-function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 22 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
+function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 23 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
 updateVerBadge();
 // visible manual reset (no dev panel / URL needed) — clears Bio-Cores, unlocks, abilities, save
 $('menuResetBtn').onclick=()=>{ resetProgress(); buildClassCards(); refreshCores(); updateVerBadge(); { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } try{toast('Progress reset — clean slate');}catch(e){} };
@@ -1972,7 +1996,8 @@ function refreshHud(){
         const ucd=Math.max(0,(me.ab2Ready||0)-now()), nm='★ '+(ULT_NAMES[me.cls]||'ULTIMATE');
         if(ucd>0){ $('hudUltFill').style.width=((1-ucd/ULT_CD)*100)+'%'; $('hudUltLab').textContent=nm+' '+(ucd/1000).toFixed(0)+'s'; ub.classList.remove('ready'); }
         else { $('hudUltFill').style.width='100%'; $('hudUltLab').textContent=nm+' — Q'; ub.classList.add('ready'); }
-      } else ub.style.display='none'; } }
+      } else ub.style.display='none'; }
+    const ubtn=$('ultBtn'); if(ubtn){ if(_isTouch&&(me.abLevel||0)>=3){ ubtn.style.display='flex'; ubtn.classList.toggle('ready', now()>=(me.ab2Ready||0)); } else ubtn.style.display='none'; } }
   const g=curGun(); if(g){
     if(g.spec.melee){ $('hudGun').textContent=g.spec.name+' (1)'; $('hudAmmo').innerHTML='<span class="res">∞ melee</span>'; $('hudAmmo').classList.remove('low'); }
     else { const reloading=me.reloading>0;
