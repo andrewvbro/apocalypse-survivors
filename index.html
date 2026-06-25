@@ -659,6 +659,9 @@ function renderChampions(){ const el=$('champLine'); if(!el) return; const m=loa
   if(m.champions&&m.champions.length){ el.innerHTML='👑 Champions of '+monthName(m.championMonth)+': <b>'+m.champions.map(esc).join(', ')+'</b> — <span style="color:#ff5a4a">Revenant unlocked!</span>'; }
   else { el.innerHTML='👑 Each month the Top 3 are crowned and unlock the <b style="color:#ff5a4a">Revenant</b> class — finish Top 3 to claim it.'; }
 }
+// one-time clean slate: reset Bio-Cores to 0, lock all special classes, reset abilities, and clear the old run save
+// (wipes leftover dev-granted / old-currency data). Runs once per browser via the 'cleanslate' flag.
+{ const m=loadMeta(); if(m.cleanslate!==1){ saveMeta({cleanslate:1}); try{ localStorage.removeItem('apocsurv_save'); }catch(e){} } }
 refreshChampions();
 { const lc=loadMeta().lastClass; if(lc && CLASSES[lc] && isUnlocked(lc)) selectedClass=lc; } // remember last-played class
 buildClassCards();
