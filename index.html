@@ -218,7 +218,7 @@
     <div class="bar thin"><i class="st" id="hudStFill" style="width:100%"></i></div>
     <div class="bar thin"><i class="xp" id="hudXpFill" style="width:0%"></i></div>
   </div>
-  <div id="abilhint">Ability: <b id="hudAbName">—</b> <span class="kbd">SPACE</span> · <span class="kbd">SHIFT</span> sprint · <span class="kbd">B</span> build · <span class="kbd">K</span> skills · <span class="kbd">E</span> bench</div>
+  <div id="abilhint">Ability: <b id="hudAbName">—</b> <span class="kbd">SPACE</span> · <span class="kbd">Q</span> ultimate · <span class="kbd">SHIFT</span> sprint · <span class="kbd">B</span> build · <span class="kbd">K</span> skills · <span class="kbd">E</span> bench</div>
   <div id="benchPrompt">⚙ Upgrade Bench — press <span class="kbd">E</span></div>
   <div id="hotbar"></div>
   <div id="ammoline">
@@ -481,13 +481,17 @@ const GUNS={
   pistol: {name:'Rapid Pistol',  dmg:16, rpm:380, mag:16, reserve:120, reload:1100, spread:.04, speed:780, range:520, pellets:1, auto:true, col:'#bfe6ff'},
   flamer: {name:'Flamethrower',  dmg:6,  rpm:1100,mag:100,reserve:300, reload:2200, spread:.30, speed:430, range:230, pellets:1, auto:true, col:'#ff7a30', flame:true},
   minigun:{name:'Minigun',       dmg:14, rpm:1300,mag:150,reserve:450, reload:3000, spread:.10, speed:880, range:560, pellets:1, auto:true, col:'#ff5a4a'},
+  lmg:    {name:'LMG',           dmg:17, rpm:700, mag:80, reserve:240, reload:3200, spread:.11, speed:820, range:580, pellets:1, auto:true, col:'#caa84a'},
+  marksman:{name:'Marksman Rifle',dmg:58,rpm:200, mag:10, reserve:60,  reload:1900, spread:.02, speed:1000,range:780, pellets:1, auto:false,col:'#9fe0ff'},
+  revolver:{name:'Revolver',     dmg:46, rpm:150, mag:6,  reserve:48,  reload:1500, spread:.03, speed:860, range:620, pellets:1, auto:false,col:'#e0b060'},
+  autoshotgun:{name:'Auto Shotgun',dmg:11,rpm:200,mag:10, reserve:60,  reload:2400, spread:.24, speed:680, range:340, pellets:6, auto:true, col:'#ff8a5b'},
 };
 // secondary weapons everyone can swap to (slots 2,3)
 const SECONDARY={name:'Sidearm', dmg:14, rpm:300, mag:12, reserve:9999, reload:1000, spread:.05, speed:760, range:520, pellets:1, auto:false, col:'#cfd6c0'};
 const HEAVY_SEC={name:'Magnum', dmg:48, rpm:120, mag:6, reserve:9999, reload:1400, spread:.03, speed:820, range:600, pellets:1, auto:false, col:'#ff6b6b'};
 // starting melee weapon (everyone spawns with this, no gun) + random guns dropped by zombies
 const MELEE={name:'Machete', melee:true, dmg:34, rpm:170, range:62, arc:1.15, col:'#cfd6c0', mag:0, ammo:0, reserve:0, spread:0, pellets:0, speed:0, range_:0, auto:true};
-const WEAPON_DROPS=['pistol','pistol','smg','smg','shotgun','rifle','rifle','flamer','minigun'];
+const WEAPON_DROPS=['pistol','pistol','smg','smg','shotgun','rifle','rifle','flamer','revolver','autoshotgun','lmg','marksman','minigun'];
 
 // =====================================================================
 // STATE
@@ -531,6 +535,7 @@ addEventListener('keydown',e=>{
   if(k==='`'){ e.preventDefault(); toggleAdmin(); return; }
   if(paused){ if(k==='escape'||k==='k'||k==='e') closePanel(); return; }
   if(k===' '){ e.preventDefault(); useAbility(); }
+  if(k==='q'){ useAbility2(); }
   if(k==='r') reload();
   if(k==='b'){ toggleBuild(); }
   if(k==='k'){ openPanel('skills'); }
@@ -597,6 +602,7 @@ function renderChampions(){ const el=$('champLine'); if(!el) return; const m=loa
   else { el.innerHTML='👑 Each month the Top 3 are crowned and unlock the <b style="color:#ff5a4a">Revenant</b> class — finish Top 3 to claim it.'; }
 }
 refreshChampions();
+{ const lc=loadMeta().lastClass; if(lc && CLASSES[lc] && isUnlocked(lc)) selectedClass=lc; } // remember last-played class
 buildClassCards();
 $('nameInput').value='Survivor'+randi(1,99);
 renderLeaderboard(); renderChampions();
@@ -630,6 +636,7 @@ function mkGun(type,override){
 // =====================================================================
 function startGame(opts){
   me.cls=selectedClass; me.name=($('nameInput').value||'Survivor').slice(0,12);
+  { const m=loadMeta(); m.lastClass=me.cls; saveMeta(m); } // persist class choice
   diff=parseFloat($('diffSelect').value); botCount=parseInt($('botSelect').value);
   applyClass();
   me.x=CX+rand(-40,40); me.y=CY+150; me.alive=true; me.dead=false; me.downed=false; me.cash=150; me.kills=0;
@@ -637,7 +644,7 @@ function startGame(opts){
   generator={x:CX,y:CY,hp:1500,maxhp:1500,r:30};
   me.scrap=0; me.xp=0; me.level=1; me.xpNext=xpForLevel(1); me.skillPoints=0; me.skills={}; applySkills();
   me.abLevel=abilityLevel(me.cls);
-  survivalT=0; lastDay=1; me.fireRingUntil=0; me.dmgBuffUntil=0; me.zoomUntil=0; camZoom=1; camZoomTarget=1; clearSave();
+  survivalT=0; lastDay=1; me.fireRingUntil=0; me.dmgBuffUntil=0; me.zoomUntil=0; me.ab2Ready=0; camZoom=1; camZoomTarget=1; clearSave();
   paused=false; openMenu=null; $('skills').style.display='none'; $('upgrade').style.display='none'; $('pause').style.display='none';
   $('buildbar').style.display='none'; $('buildHint').style.display='none'; $('bloodmoon').classList.remove('on');
   $('menu').style.display='none'; started=true; gameOver=false;
@@ -880,6 +887,18 @@ function useAbility(){
   }
   refreshHud();
 }
+// Ultimate — unlocked once a class's ability is fully upgraded (Lv 3). Key Q.
+function useAbility2(){
+  if(!started||!me.alive||me.downed||me.dead) return;
+  if((me.abLevel||0)<3){ toast('Max your class ability (credits, on the menu) to unlock the Ultimate'); return; }
+  const t=now(); if(t<(me.ab2Ready||0)){ toast('Ultimate: '+(((me.ab2Ready-t)/1000).toFixed(0))+'s'); return; }
+  me.ab2Ready=t+25000;
+  const R=320, dm=220*(1+0.25*me.abLevel);
+  for(const z of zombies){ if(z.alive&&dist(z.x,z.y,me.x,me.y)<R){ if(isHost||soloMode()) damageZombie(z.id,dm,me.id); else if(net) net.send({t:'zhit',zid:z.id,dmg:dm}); } }
+  me.hp=clamp(me.hp+me.maxhp*0.5,0,me.maxhp); me.ironUntil=t+2500; me.surgeUntil=t+5000; me.speedBoostUntil=t+5000;
+  for(let i=0;i<54;i++){ const a=Math.random()*TAU; particles.push({x:me.x,y:me.y,vx:Math.cos(a)*rand(200,520),vy:Math.sin(a)*rand(200,520),life:.85,col:Math.random()<.5?'#ffe27a':CLASSES[me.cls].color,r:rand(3,8)}); }
+  SFX.nova(); toast('★ ULTIMATE UNLEASHED!'); refreshHud();
+}
 const FIRE_R=150; // firestorm aura radius
 function updateFirestorm(dt){
   const t=now();
@@ -1054,6 +1073,9 @@ const ZTYPES={
   screamer:{hp:34, speed:62, dmg:6,  r:13, color:'#e0e04e', cash:24, score:2, buff:true, name:'Screamer'},
   exploder:{hp:50, speed:66, dmg:10, r:15, color:'#e0633a', cash:26, score:2, boom:true, name:'Exploder'},
   behemoth:{hp:650,speed:34, dmg:46, r:34, color:'#a03a3a', cash:140,score:12, resist:0.4, boss:true, name:'BEHEMOTH'},
+  brood:   {hp:540,speed:40, dmg:30, r:30, color:'#7a5a8f', cash:130,score:11, resist:0.3, boss:true, summon:true, name:'BROOD MOTHER'},
+  titan:   {hp:580,speed:38, dmg:34, r:32, color:'#5fa84e', cash:135,score:11, resist:0.35,boss:true, ranged:true, gas:true, name:'TOXIC TITAN'},
+  reaver:  {hp:500,speed:58, dmg:40, r:26, color:'#c87a3a', cash:135,score:11, resist:0.3, boss:true, leap:true, name:'REAVER'},
 };
 const ZBASIC=['walker','runner','crawler','brute','armored','spitter','toxic','leaper','screamer','exploder'];
 let hazards=[]; // player-damaging gas clouds (toxic deaths)
@@ -1061,8 +1083,8 @@ function mkZombie(type,x,y){ const s=ZTYPES[type]||ZTYPES.walker;
   const bm=isBloodMoon?1.25:1;
   return { id:zidSeq++, type, x,y,tx:x,ty:y, vx:0,vy:0, hp:s.hp*diff*bm, maxhp:s.hp*diff*bm,
     speed:s.speed*(isBloodMoon?1.1:1), dmg:s.dmg, r:s.r, color:s.color, alive:true,
-    lastHit:0, lastAtk:0, lastSpit:0, lastScream:0, burnUntil:0, rageUntil:0, leapReady:rand(1500,3500), leaping:0, wob:rand(0,TAU),
-    resist:s.resist||0, ranged:!!s.ranged, gas:!!s.gas, leap:!!s.leap, buff:!!s.buff, boom:!!s.boom, boss:!!s.boss }; }
+    lastHit:0, lastAtk:0, lastSpit:0, lastScream:0, lastSummon:0, burnUntil:0, rageUntil:0, leapReady:rand(1500,3500), leaping:0, wob:rand(0,TAU),
+    resist:s.resist||0, ranged:!!s.ranged, gas:!!s.gas, leap:!!s.leap, buff:!!s.buff, boom:!!s.boom, boss:!!s.boss, summon:!!s.summon }; }
 
 function scheduleNextWave(delay){ nextWaveAt=now()+delay; waveActive=false; }
 function startWave(){
@@ -1072,18 +1094,21 @@ function startWave(){
   let base=5+wave*2.5; if(isBloodMoon) base*=1.7; if(isBoss) base*=0.5; // fewer trash mobs on boss waves
   spawnQueue=Math.round(base*diff); enemiesAlive=spawnQueue; spawnTimer=0;
   $('bloodmoon').classList.toggle('on',isBloodMoon);
-  if(isBoss){ spawnBoss(); SFX.boss(); banner('👹 BOSS FIGHT','Wave '+wave+' — slay the Behemoth'); toast('A monstrous BEHEMOTH closes in…',2800); }
+  if(isBoss){ spawnBoss(); SFX.boss(); banner('👹 BOSS FIGHT','Wave '+wave+' — slay the '+bossName); toast('A '+bossName+' closes in…',2800); }
   else if(isBloodMoon){ SFX.bloodMoon(); banner('🌑 BLOOD MOON','Wave '+wave+' — the horde swells'); }
   else { SFX.wave(); banner('WAVE '+wave, spawnQueue+' incoming'); }
   setTimeout(hideBanner,2200);
   if(net) net.broadcast({t:'wave',wave,alive:enemiesAlive,bm:isBloodMoon,boss:isBoss});
   refreshHud();
 }
+const BOSS_TYPES=['behemoth','brood','reaver','titan'];
+let bossName='Behemoth';
 function spawnBoss(){
   const tier=Math.floor(wave/10);           // 1 at wave 10, 2 at wave 20, …
-  const count=Math.min(tier,3);             // up to 3 behemoths at once
+  const count=Math.min(tier,3);             // up to 3 bosses at once
   const mult=1+(tier-1)*0.6;
-  for(let i=0;i<count;i++){ const m=spawnPos(randi(0,3)); const bh=mkZombie('behemoth',m.x,m.y);
+  const type=BOSS_TYPES[(tier-1)%BOSS_TYPES.length]; bossName=(ZTYPES[type].name||'BOSS');
+  for(let i=0;i<count;i++){ const m=spawnPos(randi(0,3)); const bh=mkZombie(type,m.x,m.y);
     bh.hp*=mult; bh.maxhp*=mult; bh.dmg*=1+(tier-1)*0.3;
     zombies.push(bh); enemiesAlive++; }
 }
@@ -1132,6 +1157,10 @@ function updateZombies(dt){
     const hitS=resolveCollision(z,z.r);
     if(hitS && t-z.lastAtk>600){ z.lastAtk=t; damageStructure(hitS,z.dmg*0.8); spawnHitFx(z.x,z.y,'#9a8c6a'); }
     const d=dist(z.x,z.y,tg.x,tg.y);
+    // brood mother summons minions
+    if(z.summon && t-z.lastSummon>4000 && enemiesAlive<70){ z.lastSummon=t;
+      for(let i=0;i<3;i++){ const ang=Math.random()*TAU, zz=mkZombie(Math.random()<.5?'runner':'walker', z.x+Math.cos(ang)*40, z.y+Math.sin(ang)*40); zombies.push(zz); enemiesAlive++; }
+      for(let i=0;i<10;i++){const ang=i/10*TAU; particles.push({x:z.x,y:z.y,vx:Math.cos(ang)*120,vy:Math.sin(ang)*120,life:.5,col:'#b07fd6',r:3});} }
     // screamer rallies the horde
     if(z.buff && t-z.lastScream>2600){ z.lastScream=t;
       for(const o of zombies){ if(o!==z&&o.alive&&dist(o.x,o.y,z.x,z.y)<210) o.rageUntil=t+3200; }
@@ -1627,12 +1656,12 @@ function drawWeapon(type){
       ctx.fillStyle='#2b241c'; ctx.fillRect(2,-2,7,4);            // handle
       ctx.fillStyle='#c8d0d6'; ctx.beginPath(); ctx.moveTo(9,-3); ctx.lineTo(26,-2); ctx.lineTo(28,1); ctx.lineTo(9,3); ctx.closePath(); ctx.fill(); // blade
       ctx.fillStyle='#9aa3aa'; ctx.fillRect(9,-1,15,1); break;
-    case 'rifle':
+    case 'rifle': case 'lmg': case 'marksman': case 'minigun':
       ctx.fillStyle='#3a3a3a'; ctx.fillRect(0,-2,6,4);          // stock
       ctx.fillStyle='#2b2b2b'; ctx.fillRect(4,-2.5,24,5);       // receiver + barrel
       ctx.fillStyle='#1c1c1c'; ctx.fillRect(8,2,5,8);           // magazine
       ctx.fillStyle=ac;        ctx.fillRect(25,-1.5,4,3); break;// muzzle accent
-    case 'shotgun':
+    case 'shotgun': case 'autoshotgun':
       ctx.fillStyle='#3a2e22'; ctx.fillRect(0,-3.5,11,7);       // wood stock
       ctx.fillStyle='#2b2b2b'; ctx.fillRect(9,-3.5,17,7);       // twin barrels
       ctx.fillStyle='#1c1c1c'; ctx.fillRect(14,3,8,3);          // pump
@@ -1642,7 +1671,7 @@ function drawWeapon(type){
       ctx.fillStyle='#2b2b2b'; ctx.fillRect(3,-2.5,16,5);       // short body
       ctx.fillStyle='#1c1c1c'; ctx.fillRect(7,2,4,9);           // long curved mag
       ctx.fillStyle=ac;        ctx.fillRect(17,-1.5,3,3); break;
-    case 'pistol':
+    case 'pistol': case 'revolver':
       ctx.fillStyle='#2b2b2b'; ctx.fillRect(4,-2,11,4);
       ctx.fillStyle='#1c1c1c'; ctx.fillRect(5,1.5,4,6);         // grip
       ctx.fillStyle=ac;        ctx.fillRect(13,-1.5,2,3); break;
@@ -1739,7 +1768,8 @@ function refreshHud(){
     $('genLab').textContent='⚡ GENERATOR '+Math.ceil(generator.hp); }
   // boss health bar
   let bhp=0,bmax=0,bn=0; for(const z of zombies){ if(z.alive&&z.boss){ bhp+=z.hp; bmax+=z.maxhp; bn++; } }
-  const bb=$('bossbar'); if(bn>0&&bmax>0){ bb.style.display='block'; $('bossFill').style.width=clamp(bhp/bmax,0,1)*100+'%'; $('bossLab').textContent='👹 BEHEMOTH'+(bn>1?(' ×'+bn):''); } else bb.style.display='none';
+  const bz=zombies.find(z=>z.alive&&z.boss); const bnm=bz?(ZTYPES[bz.type].name||'BOSS'):'BOSS';
+  const bb=$('bossbar'); if(bn>0&&bmax>0){ bb.style.display='block'; $('bossFill').style.width=clamp(bhp/bmax,0,1)*100+'%'; $('bossLab').textContent='👹 '+bnm+(bn>1?(' ×'+bn):''); } else bb.style.display='none';
   if(buildMode) refreshBuildBar();
   const c=CLASSES[me.cls]; const cd=Math.max(0,me.abReady-now());
   const af=cd>0?1-cd/c.abCd:1; $('hudAbFill').style.width=(af*100)+'%';
