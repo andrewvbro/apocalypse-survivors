@@ -54,6 +54,17 @@
   #buildbar .bcard .bk{color:var(--mut); font-size:10px;}
   #buildHint{position:absolute; bottom:108px; left:50%; transform:translateX(-50%); display:none; font-size:12px; color:var(--acc); background:rgba(8,11,8,.72); padding:4px 14px; border-radius:6px;}
   /* blood moon overlay */
+  /* developer admin panel */
+  #admin{position:fixed; top:50px; right:10px; width:230px; max-height:88vh; overflow-y:auto; z-index:40; display:none;
+    background:rgba(10,14,18,.95); border:1px solid #3a5a7a; border-radius:10px; padding:10px; font-size:12px; color:#cfe;}
+  #admin .ahead{font-weight:bold; color:#6fd6ff; letter-spacing:1px; margin-bottom:8px;}
+  #admin .aclose{float:right; cursor:pointer; color:#d8453a; font-weight:bold;}
+  #admin .agrp{color:#7f8a72; font-size:10px; letter-spacing:1px; text-transform:uppercase; margin:8px 0 4px;}
+  #admin .abtn{display:block; width:100%; text-align:left; background:#16202a; border:1px solid #2e466a; color:#cfe;
+    border-radius:6px; padding:6px 9px; margin:3px 0; cursor:pointer; font-family:inherit; font-size:12px;}
+  #admin .abtn:hover{border-color:#6fd6ff; background:#1d2f3e;}
+  #admin .abtn.on{background:#1f3a22; border-color:var(--acc); color:var(--acc);}
+  #admin .ahint{color:#7f8a72; font-size:10px; margin-top:8px; text-align:center;}
   #bloodmoon{position:fixed; inset:0; pointer-events:none; z-index:3; display:none;
     background:radial-gradient(circle at 50% 38%,rgba(140,0,0,0) 28%,rgba(120,0,0,.34) 100%);}
   #bloodmoon.on{display:block; animation:bmpulse 4.5s ease-in-out infinite;}
@@ -225,6 +236,7 @@
   <div id="banner" style="display:none"></div>
 </div>
 <div id="bloodmoon"></div>
+<div id="admin"></div>
 <div id="pause">
   <div class="pbox">
     <h2>PAUSED</h2>
@@ -516,6 +528,7 @@ let zidSeq=1;
 addEventListener('keydown',e=>{
   const k=e.key.toLowerCase(); keys[k]=true;
   if(k==='m'){ const on=SFX.toggle(); $('muteBtn').textContent=on?'🔊':'🔇'; toast(on?'🔊 Sound on':'🔇 Muted'); return; }
+  if(k==='`'){ e.preventDefault(); toggleAdmin(); return; }
   if(paused){ if(k==='escape'||k==='k'||k==='e') closePanel(); return; }
   if(k===' '){ e.preventDefault(); useAbility(); }
   if(k==='r') reload();
@@ -599,6 +612,7 @@ function menuErr(m){ $('menuErr').textContent=m||''; }
 // auto-join from invite link ?room=CODE
 const urlRoom=new URLSearchParams(location.search).get('room');
 if(urlRoom){ $('joinRow').style.display='flex'; $('joinCode').value=urlRoom.toUpperCase(); }
+if(new URLSearchParams(location.search).get('dev')==='apocdev'){ try{localStorage.setItem('apocsurv_dev','1');}catch(e){} }
 
 function applyClass(){
   const c=CLASSES[me.cls]; me.maxhp=Math.round(c.hp); me.hp=me.maxhp; me.speed=c.speed;
@@ -814,7 +828,7 @@ function tryFire(t){
   let rpm=g.spec.rpm*(1+0.08*(g.up.rof||0)); if(t<me.surgeUntil) rpm*=1.7;
   const interval=60000/rpm;
   if(t-me.lastShot<interval) return;
-  me.lastShot=t; g.ammo--; refreshHud();
+  me.lastShot=t; g.ammo--; if(dev.infAmmo){ g.ammo=g.mag; g.reserve=g.spec.reserve||g.reserve; } refreshHud();
   const pellets=g.spec.pellets;
   const dmg=g.spec.dmg*me.dmgMul*(1+0.12*(g.up.dmg||0))*(now()<me.dmgBuffUntil?(me.sniperBuff||3):1);
   for(let i=0;i<pellets;i++){
@@ -1136,12 +1150,13 @@ function updateZombies(dt){
 function hurtTarget(tg,dmg){
   if(tg.kind==='me'){ damageMe(dmg); }
   else if(tg.kind==='bot'){ tg.obj.hp-=dmg; if(tg.obj.hp<=0){ tg.obj.alive=false; spawnDeathFx(tg.obj.x,tg.obj.y,tg.obj.color); toast(tg.obj.name+' fell'); } }
-  else if(tg.kind==='gen'){ generator.hp-=dmg; spawnHitFx(generator.x+rand(-20,20),generator.y+rand(-20,20),'#ffd86b'); if(generator.hp<=0){ generator.hp=0; generatorDestroyed(); } }
+  else if(tg.kind==='gen'){ if(dev.godGen) return; generator.hp-=dmg; spawnHitFx(generator.x+rand(-20,20),generator.y+rand(-20,20),'#ffd86b'); if(generator.hp<=0){ generator.hp=0; generatorDestroyed(); } }
   // net players manage their own hp; host just informs via reduced authority (kept simple)
 }
 function generatorDestroyed(){ if(gameOver) return; toast('⚡ THE GENERATOR WAS DESTROYED!',3000); doGameOver(false); }
 function damageZombie(zid,dmg,by){
   const z=zombies.find(z=>z.id===zid); if(!z||!z.alive) return;
+  if(dev.oneShot) dmg=999999;
   z.hp-=dmg*(1-(z.resist||0)); z.lastHit=now();
   if(z.hp<=0){ killZombie(z,by); }
 }
@@ -1311,6 +1326,7 @@ function updateBullets(dt){
   bullets=bullets.filter(b=>b.life>0 && b.x>-40&&b.x<WORLD.w+40&&b.y>-40&&b.y<WORLD.h+40);
 }
 function damageMe(dmg){
+  if(dev.god) return;
   const t=now();
   if(t<me.ironUntil) dmg*=0.1;
   me.hp-=dmg; me.lastHurt=t;
@@ -1770,6 +1786,53 @@ function openPanel(id){ if(!started||gameOver||openMenu) return; openMenu=id; pa
 function closePanel(){ if(!openMenu) return; $(openMenu).style.display='none'; openMenu=null; paused=false; }
 function togglePause(){ if(openMenu==='pause') closePanel(); else if(!openMenu) openPanel('pause'); }
 function quitToMenu(){ saveGame(); if(net&&net.peer){ try{ net.peer.destroy(); }catch(e){} } location.reload(); }
+
+// =====================================================================
+// DEVELOPER ADMIN PANEL (gated by a secret code; not exposed to players)
+// =====================================================================
+const DEV_CODE='apocdev'; // also unlockable via ?dev=apocdev
+const dev={ open:false, god:false, infAmmo:false, oneShot:false, godGen:false };
+function devUnlocked(){ try{ return localStorage.getItem('apocsurv_dev')==='1'; }catch(e){ return false; } }
+function grantDev(){ try{ localStorage.setItem('apocsurv_dev','1'); }catch(e){} }
+function toggleAdmin(){
+  if(!devUnlocked()){ const code=prompt('Developer access code:'); if(code!==DEV_CODE){ if(code!=null) toast('Access denied'); return; } grantDev(); toast('🛠 Developer mode unlocked'); }
+  dev.open=!dev.open; const el=$('admin'); el.style.display=dev.open?'block':'none'; if(dev.open) renderAdmin();
+}
+function renderAdmin(){
+  const tog=(label,key)=>`<button class="abtn${dev[key]?' on':''}" data-tog="${key}">${label}: <b>${dev[key]?'ON':'OFF'}</b></button>`;
+  const act=(label,id)=>`<button class="abtn" data-act="${id}">${label}</button>`;
+  $('admin').innerHTML=`<div class="ahead">🛠 DEV PANEL<span data-act="close" class="aclose">✕</span></div>
+    <div class="agrp">Cheats</div>${tog('God mode','god')}${tog('Infinite ammo','infAmmo')}${tog('One-shot kills','oneShot')}${tog('Invincible generator','godGen')}
+    <div class="agrp">Give</div>${act('+$1000','cash')}${act('+500 scrap','scrap')}${act('+100 credits','credits')}${act('+5 skill pts','sp')}${act('+5000 XP','xp')}${act('Full heal','heal')}
+    <div class="agrp">Weapons</div>${act('Random weapon','rweap')}${act('All weapons','allweap')}
+    <div class="agrp">Waves & spawns</div>${act('Clear zombies','clear')}${act('Spawn 10','spawn10')}${act('Spawn boss','boss')}${act('Skip wave','skipwave')}
+    <div class="agrp">Unlocks</div>${act('Unlock all classes','unlockcls')}${act('Max ability lvls','maxabil')}${act('Heal generator','genheal')}${act('Reset dev/save','wipe')}
+    <div class="ahint">toggle with <b>\`</b> (backtick)</div>`;
+  $('admin').querySelectorAll('[data-tog]').forEach(b=>b.onclick=()=>{ dev[b.dataset.tog]=!dev[b.dataset.tog]; renderAdmin(); });
+  $('admin').querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>adminAct(b.dataset.act));
+}
+function adminAct(a){ const m=loadMeta();
+  switch(a){
+    case 'close': dev.open=false; $('admin').style.display='none'; return;
+    case 'cash': me.cash+=1000; break;
+    case 'scrap': me.scrap+=500; break;
+    case 'credits': m.credits=(m.credits||0)+100; saveMeta(m); break;
+    case 'sp': me.skillPoints+=5; break;
+    case 'xp': gainXp(5000); break;
+    case 'heal': me.hp=me.maxhp; me.downed=false; me.dead=false; me.alive=true; if(generator)generator.hp=generator.maxhp; break;
+    case 'rweap': { const wt=WEAPON_DROPS[randi(0,WEAPON_DROPS.length-1)]; if(me.guns.length<GUN_CAP){ me.guns.push(mkGun(wt)); me.gunIdx=me.guns.length-1; } else { me.guns[1]=mkGun(wt); me.gunIdx=1; } toast('DEV: '+GUNS[wt].name); break; }
+    case 'allweap': ['rifle','shotgun','smg','pistol','flamer','minigun'].forEach(wt=>{ if(!me.guns.find(g=>g.type===wt)&&me.guns.length<GUN_CAP) me.guns.push(mkGun(wt)); }); break;
+    case 'clear': zombies.length=0; enemiesAlive=0; break;
+    case 'spawn10': if(isHost||soloMode()){ for(let i=0;i<10;i++) spawnOne(); enemiesAlive+=10; } break;
+    case 'boss': if(isHost||soloMode()){ const bp=spawnPos(randi(0,3)); zombies.push(mkZombie('behemoth',bp.x,bp.y)); enemiesAlive++; } break;
+    case 'skipwave': spawnQueue=0; zombies.length=0; enemiesAlive=0; break;
+    case 'unlockcls': m.unlocked=CLASS_KEYS.slice(); saveMeta(m); if($('menu').style.display!=='none') buildClassCards(); toast('All classes unlocked'); break;
+    case 'maxabil': m.abil={}; CLASS_KEYS.forEach(k=>m.abil[k]=3); saveMeta(m); me.abLevel=3; if($('menu').style.display!=='none') buildClassCards(); toast('Ability levels maxed'); break;
+    case 'genheal': if(generator) generator.hp=generator.maxhp; break;
+    case 'wipe': localStorage.removeItem('apocsurv_meta'); localStorage.removeItem('apocsurv_save'); localStorage.removeItem('apocsurv_scores'); toast('Cleared meta/save/scores'); break;
+  }
+  refreshHud();
+}
 function renderPanel(id){ if(id==='skills') renderSkills(); else if(id==='upgrade') renderUpgrade(); }
 function renderSkills(){
   $('skillsBox').innerHTML=`<h2>★ SKILLS</h2>
