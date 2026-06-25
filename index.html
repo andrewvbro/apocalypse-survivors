@@ -283,7 +283,8 @@
 <div id="menu">
   <h1>APOCALYPSE&nbsp;SURVIVORS</h1>
   <div class="tag">CO-OP TOP-DOWN SURVIVAL · CHOOSE YOUR CLASS · OUTLAST THE HORDE</div>
-  <div class="tag" style="color:#5a6650;font-size:10px;margin-top:2px">build 16 · 2026-06-25</div>
+  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 17 · 2026-06-25</div>
+  <div style="margin-top:6px"><button id="menuResetBtn" style="background:#2a1414;border:1px solid #5a2a2a;color:#e7a; border-radius:6px;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">↺ Reset progress (Bio-Cores, classes, abilities)</button></div>
 
   <div class="panel" id="classPanel">
     <h2>Pick your class <span id="coreBal" style="float:right;color:#ffe27a;font-size:13px">☣ 0 Bio-Cores</span></h2>
@@ -682,6 +683,11 @@ addEventListener('storage',e=>{ if(!e.key||e.key===META_KEY) refreshCores(); });
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshCores(); }); // switched back to this tab → show current total
 addEventListener('focus',()=>refreshCores());
 addEventListener('load',()=>refreshCores()); // re-sync the saved Bio-Cores total once everything's initialized (guards against a stale 0 at first paint)
+// build badge shows actual saved data, so stale-cache vs data issues are diagnosable at a glance
+function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 17 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
+updateVerBadge();
+// visible manual reset (no dev panel / URL needed) — clears Bio-Cores, unlocks, abilities, save
+$('menuResetBtn').onclick=()=>{ resetProgress(); buildClassCards(); refreshCores(); updateVerBadge(); { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } try{toast('Progress reset — clean slate');}catch(e){} };
 renderLeaderboard(); renderChampions();
 if(hasSave()){ const sd=loadSaveData(); const cb=$('continueBtn'); cb.style.display='inline-block';
   cb.textContent='▶ Continue (Day '+(Math.floor((sd.survivalT||0)/DAY_LEN)+1)+' · Wave '+((sd.wave||0)+1)+')'; cb.onclick=continueGame; }
