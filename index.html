@@ -663,7 +663,8 @@ if(/[?&]reset(=|&|$)/i.test(location.search)){ // one-click reset link: .../?res
   resetProgress($('nameInput').value);
   try{ history.replaceState(null,'',location.pathname); }catch(e){} // strip ?reset so a refresh doesn't keep wiping
   buildClassCards(); if($('creditBal')) $('creditBal').textContent='💳 '+getCredits()+' credits';
-  try{ toast('Progress reset — clean slate (credits 0, special classes locked)'); }catch(e){}
+  { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } // saved run wiped too
+  try{ toast('Full reset — all stats, items & classes cleared (credits 0, special classes locked)'); }catch(e){}
 } else setMetaName($('nameInput').value); // pull this player's cloud progress (credits/unlocks) by name
 $('nameInput').addEventListener('change',()=>setMetaName($('nameInput').value)); // re-sync when they rename
 renderLeaderboard(); renderChampions();
@@ -1970,10 +1971,11 @@ function adminAct(a){ const m=loadMeta();
     case 'maxabil': m.abil={}; CLASS_KEYS.forEach(k=>m.abil[k]=3); saveMeta(m); me.abLevel=3; if($('menu').style.display!=='none') buildClassCards(); toast('Ability levels maxed'); break;
     case 'genheal': if(generator) generator.hp=generator.maxhp; toast('Generator repaired'); break;
     case 'wipe': localStorage.removeItem('apocsurv_meta'); localStorage.removeItem('apocsurv_save'); localStorage.removeItem('apocsurv_scores'); toast('Cleared meta/save/scores'); break;
-    case 'resetprog': { // clean slate: clear credits/unlocks/abilities everywhere (local + cloud), keep dev access & leaderboard
+    case 'resetprog': { // full clean slate: credits/unlocks/abilities/saved run/local scores (local + cloud), keep dev access & global leaderboard
       resetProgress(me.name||$('nameInput').value);
       me.abLevel=0; if($('menu').style.display!=='none') buildClassCards();
-      toast('Progress reset — credits 0, classes & abilities locked (local + cloud)'); break; }
+      { const cb=$('continueBtn'); if(cb) cb.style.display='none'; }
+      toast('Full reset — stats, items & classes cleared (local + cloud)'); break; }
   }
   if($('creditBal')) $('creditBal').textContent='💳 '+getCredits()+' credits'; // live-update menu credit display
   if($('menu')&&getComputedStyle($('menu')).display!=='none') buildClassCards();
@@ -2052,10 +2054,12 @@ function pushCloudMeta(){ if(!_metaName) return; if(_cloudTimer) clearTimeout(_c
   _cloudTimer=setTimeout(()=>{ const m=loadMeta();
     try{ fetch(PMETA_URL+'/'+_metaName+'.json',{method:'PUT',body:JSON.stringify({credits:m.credits||0,unlocked:m.unlocked||[],abil:m.abil||{},ts:Date.now()})}).catch(()=>{}); }catch(e){}
   },700); }
-function resetProgress(name){ // clean slate everywhere: clear local meta + force-overwrite cloud so the union-merge can't restore it
+function resetProgress(name){ // FULL clean slate: credits/unlocks/abilities/per-class progress + saved run (weapons/stash/level/stats) + local scores, local AND cloud
   _metaName=metaKeyFor(name)||_metaName; _metaMem={};
-  try{ localStorage.setItem(META_KEY,'{}'); }catch(e){}
-  if(_metaName){ try{ fetch(PMETA_URL+'/'+_metaName+'.json',{method:'PUT',body:JSON.stringify({credits:0,unlocked:[],abil:{},ts:Date.now()})}).catch(()=>{}); }catch(e){} }
+  try{ localStorage.setItem(META_KEY,'{}'); }catch(e){}            // credits, unlocked classes, ability levels, classProg, champions, lastClass
+  try{ localStorage.removeItem('apocsurv_save'); }catch(e){}       // in-progress run: weapons, stash, level, skills, cash, scrap
+  try{ localStorage.removeItem('apocsurv_scores'); }catch(e){}     // local high scores
+  if(_metaName){ try{ fetch(PMETA_URL+'/'+_metaName+'.json',{method:'PUT',body:JSON.stringify({credits:0,unlocked:[],abil:{},ts:Date.now()})}).catch(()=>{}); }catch(e){} } // force-overwrite cloud so the union-merge can't restore it
 }
 function setMetaName(name){ const k=metaKeyFor(name); if(!k||k===_metaName) return; _metaName=k;
   try{ localStorage.setItem('apocsurv_name', name); }catch(e){}
