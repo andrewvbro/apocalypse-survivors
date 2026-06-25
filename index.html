@@ -402,10 +402,16 @@ addEventListener('keydown',()=>{ SFX.init(); SFX.resume(); });
 // storage self-test — warns if localStorage can't persist (private mode / blocked site data)
 (function(){ try{ localStorage.setItem('__apoctest','1'); const ok=localStorage.getItem('__apoctest')==='1'; localStorage.removeItem('__apoctest'); if(!ok) throw 0; }
   catch(e){ addEventListener('load',()=>setTimeout(()=>{ try{toast('⚠ Browser storage is OFF — Bio-Cores, unlocks & saves won\'t persist. Exit private mode or allow site data.');}catch(_){} },1800)); } })();
+// Service worker REMOVED — it kept trapping users on stale cached code. Actively tear down any
+// previously-installed worker + caches so the game always loads fresh from the network. (sw.js is
+// now a self-destruct stub for browsers still holding the old registration.)
 if('serviceWorker' in navigator){
   let _swReloaded=false;
-  navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(_swReloaded)return; _swReloaded=true; location.reload(); }); // auto-load new version
-  addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(r=>{ try{r.update();}catch(e){} }).catch(()=>{}));
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(_swReloaded)return; _swReloaded=true; location.reload(); }); // when the old SW lets go, reload onto fresh code
+  addEventListener('load',()=>{
+    try{ navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>{ try{r.unregister();}catch(e){} })).catch(()=>{}); }catch(e){}
+    try{ if(self.caches&&caches.keys) caches.keys().then(ks=>ks.forEach(k=>caches.delete(k))).catch(()=>{}); }catch(e){}
+  });
 }
 const WORLD={w:2600,h:2600};
 const SCORES_URL='https://survive-the-horde-default-rtdb.firebaseio.com/scores'; // global leaderboard (declared early — used at load)
