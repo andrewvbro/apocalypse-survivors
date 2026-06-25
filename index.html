@@ -665,6 +665,10 @@ if(/[?&]reset(=|&|$)/i.test(location.search)){ // one-click reset link: .../?res
   try{ toast('Full reset — all stats, items & classes cleared (credits 0, special classes locked)'); }catch(e){}
 } else setMetaName($('nameInput').value); // pull this player's cloud progress (credits/unlocks) by name
 $('nameInput').addEventListener('change',()=>setMetaName($('nameInput').value)); // re-sync when they rename
+// keep credits consistent across multiple open tabs / when returning to a tab (storage is shared; each tab only drew its menu once at load)
+addEventListener('storage',e=>{ if(!e.key||e.key===META_KEY) refreshCredits(); }); // another tab changed credits → reflect here
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshCredits(); }); // switched back to this tab → show current total
+addEventListener('focus',()=>refreshCredits());
 renderLeaderboard(); renderChampions();
 if(hasSave()){ const sd=loadSaveData(); const cb=$('continueBtn'); cb.style.display='inline-block';
   cb.textContent='▶ Continue (Day '+(Math.floor((sd.survivalT||0)/DAY_LEN)+1)+' · Wave '+((sd.wave||0)+1)+')'; cb.onclick=continueGame; }
