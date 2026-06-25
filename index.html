@@ -1530,8 +1530,10 @@ function updateWaves(dt){
   if(spawnQueue<=0 && zombies.filter(z=>z.alive).length===0){ waveActive=false;
     const reward=(50+wave*10)*(isBloodMoon?2:1); me.cash+=reward;
     const waveXp=Math.round((50+wave*20)*(isBloodMoon?2:1)); gainXp(waveXp);
+    const cr=Math.max(1,Math.round(wave*1.5)*(isBloodMoon?2:1)); // bank credits every wave (persists immediately)
+    { const mm=loadMeta(); mm.credits=(mm.credits||0)+cr; saveMeta(mm); }
     isBloodMoon=false; $('bloodmoon').classList.remove('on');
-    toast('Wave '+wave+' cleared! +$'+reward+' · +'+waveXp+' XP',1800);
+    toast('Wave '+wave+' cleared! +$'+reward+' · +'+waveXp+' XP · +'+cr+' 💳',1800);
     scheduleNextWave(7000); saveGame(); saveClassProg(); banner('WAVE CLEARED','Build up — next wave in 7s'); setTimeout(hideBanner,1900); refreshHud(); }
 }
 
