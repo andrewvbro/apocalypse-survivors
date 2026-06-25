@@ -78,6 +78,10 @@
   .lb .det{color:var(--mut); font-size:11px;}
   .lb .sc{color:var(--acc); font-weight:bold;}
   .lb .empty{color:var(--mut); padding:10px; text-align:center;}
+  .srow{display:flex; align-items:center; justify-content:space-between; gap:10px; background:#0e120b; border:1px solid #283019; border-radius:8px; padding:9px 11px; margin-bottom:7px;}
+  .srow .det{color:var(--mut); font-size:11px;}
+  .srow .buy{background:#1d2615; border:1px solid #3f4d2a; color:var(--txt); border-radius:7px; padding:6px 14px; cursor:pointer; font-family:inherit; font-weight:bold;}
+  .srow .buy:hover{border-color:var(--acc); background:#283418;}
   /* pause / quit */
   #pauseBtn{position:absolute; top:8px; right:14px; pointer-events:auto; background:rgba(8,11,8,.62);
     border:1px solid #2a3324; color:var(--txt); border-radius:8px; padding:6px 12px; cursor:pointer; font-size:13px; font-family:inherit;}
@@ -249,6 +253,13 @@
 <div id="skills" class="gmenu"><div class="gbox" id="skillsBox"></div></div>
 <div id="upgrade" class="gmenu"><div class="gbox" id="upgradeBox"></div></div>
 <div id="inv" class="gmenu"><div class="gbox" id="invBox"></div></div>
+<div id="serverList" class="gmenu" style="z-index:30">
+  <div class="gbox"><h2>🌐 PUBLIC SERVERS</h2>
+    <div class="ghead"><span>Live co-op games — click Join</span><span id="srRefresh" style="cursor:pointer;color:#6fd6ff">↻ Refresh</span></div>
+    <div id="serverListBox" class="lb"></div>
+    <div class="closeRow"><button class="btn primary" id="srClose">Close</button></div>
+  </div>
+</div>
 
 <div id="mobileControls">
   <div class="stick" id="moveStick"><div class="nub"></div></div>
@@ -285,8 +296,11 @@
       <button class="btn primary" id="continueBtn" style="display:none">▶ Continue</button>
       <button class="btn primary" id="soloBtn">▶ Play Solo</button>
       <button class="btn" id="hostBtn">👥 Host Co-op</button>
+      <button class="btn alt" id="browseBtn">🌐 Public Servers</button>
       <button class="btn alt" id="joinToggle">🔗 Join a friend</button>
     </div>
+    <label style="display:flex;align-items:center;gap:7px;margin-top:10px;font-size:13px;color:var(--mut);cursor:pointer">
+      <input type="checkbox" id="publicHost"> List my co-op game on <b style="color:#6fd6ff">Public Servers</b> when I host</label>
     <div id="joinRow" class="row" style="display:none; margin-top:12px">
       <label class="fld">Room code<input type="text" id="joinCode" maxlength="4" placeholder="ABCD" style="width:130px; text-transform:uppercase; letter-spacing:4px;"></label>
       <button class="btn primary" id="joinBtn">Join</button>
@@ -627,6 +641,9 @@ if(hasSave()){ const sd=loadSaveData(); const cb=$('continueBtn'); cb.style.disp
 $('joinToggle').onclick=()=>{ const r=$('joinRow'); r.style.display=r.style.display==='none'?'flex':'none'; };
 $('soloBtn').onclick=()=>startGame({mode:'solo'});
 $('hostBtn').onclick=()=>hostGame();
+$('browseBtn').onclick=()=>openServerList();
+$('srClose').onclick=()=>$('serverList').style.display='none';
+$('srRefresh').onclick=()=>openServerList();
 $('joinBtn').onclick=()=>{ const code=$('joinCode').value.trim().toUpperCase(); if(code.length<3){menuErr('Enter the 4-letter room code.');return;} joinGame(code); };
 function menuErr(m){ $('menuErr').textContent=m||''; }
 
@@ -692,6 +709,25 @@ function soloMode(){ return !net; }
 const PREFIX='apocsurv-';
 function genCode(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ'; let s=''; for(let i=0;i<4;i++) s+=A[randi(0,A.length-1)]; return s; }
 
+// ---------- public server list (Firebase Realtime DB REST) ----------
+const LOBBY_URL='https://survive-the-horde-default-rtdb.firebaseio.com/servers';
+let myServerCode=null, lobbyTimer=null;
+function lobbyName(){ return (me.name||$('nameInput').value||'Host').slice(0,14); }
+function lobbyPush(){ if(!myServerCode) return;
+  const data={ name:lobbyName(), code:myServerCode, players:1+Object.keys(players).length, wave:wave||0, day:(currentDay?currentDay():1), hard:hardMode?1:0, started:started?1:0, ts:Date.now() };
+  try{ fetch(LOBBY_URL+'/'+myServerCode+'.json',{method:'PUT',body:JSON.stringify(data)}).catch(()=>{}); }catch(e){} }
+function lobbyRegister(code){ myServerCode=code; lobbyPush(); if(lobbyTimer) clearInterval(lobbyTimer); lobbyTimer=setInterval(lobbyPush,8000); }
+function lobbyRemove(){ if(!myServerCode) return; const c=myServerCode; myServerCode=null; if(lobbyTimer){ clearInterval(lobbyTimer); lobbyTimer=null; }
+  try{ fetch(LOBBY_URL+'/'+c+'.json',{method:'DELETE',keepalive:true}).catch(()=>{}); }catch(e){} }
+addEventListener('beforeunload',lobbyRemove);
+function openServerList(){ const box=$('serverListBox'); $('serverList').style.display='flex'; box.innerHTML='<div class="empty">Loading…</div>';
+  fetch(LOBBY_URL+'.json').then(r=>r.json()).then(renderServerList).catch(()=>{ box.innerHTML='<div class="empty">Couldn\'t reach the server list. Try again.</div>'; }); }
+function renderServerList(data){ const box=$('serverListBox'); const now=Date.now();
+  const list=Object.values(data||{}).filter(s=>s&&s.code&&(now-(s.ts||0)<30000));
+  if(!list.length){ box.innerHTML='<div class="empty">No public games right now — Host Co-op with “List publicly” checked to start one!</div>'; return; }
+  list.sort((a,b)=>(b.ts||0)-(a.ts||0));
+  box.innerHTML=list.map(s=>`<div class="srow"><div><b>${esc(s.name||'Host')}</b> <span class="det">${s.hard?'☠ Hard · ':''}Day ${s.day||1} · Wave ${s.wave||0} · ${s.players||1}p${s.started?' · in progress':''}</span></div><button class="buy" data-code="${esc(s.code)}">Join</button></div>`).join('');
+  box.querySelectorAll('[data-code]').forEach(b=>b.onclick=()=>{ $('serverList').style.display='none'; $('joinRow').style.display='flex'; $('joinCode').value=b.dataset.code; joinGame(b.dataset.code); }); }
 function hostGame(){
   isHost=true; const code=genCode();
   $('lobby').style.display='block'; $('roomcode').textContent=code;
@@ -699,8 +735,9 @@ function hostGame(){
   $('invite').textContent=link;
   $('copyInvite').onclick=()=>{ navigator.clipboard.writeText(link).then(()=>toast('Invite link copied')); };
   $('startBtn').style.display='inline-block';
-  $('startBtn').onclick=()=>{ net.broadcast({t:'start',from:me.id}); startGame({mode:'host'}); };
-  startNet(true,code).then(()=>{ updateLobby(); }).catch(e=>menuErr(e.message));
+  $('startBtn').onclick=()=>{ net.broadcast({t:'start',from:me.id}); startGame({mode:'host'}); lobbyPush(); };
+  const pub=$('publicHost') && $('publicHost').checked;
+  startNet(true,code).then(()=>{ updateLobby(); if(pub){ lobbyRegister(code); $('lobbyHint').textContent='Listed on Public Servers. Share the code/link, or wait for players.'; } }).catch(e=>menuErr(e.message));
 }
 function joinGame(code){
   isHost=false; menuErr('Connecting…');
@@ -1831,7 +1868,7 @@ function openPanel(id){ if(!started||gameOver||openMenu) return; openMenu=id; pa
   $(id).style.display='flex'; }
 function closePanel(){ if(!openMenu) return; $(openMenu).style.display='none'; openMenu=null; paused=false; }
 function togglePause(){ if(openMenu==='pause') closePanel(); else if(!openMenu) openPanel('pause'); }
-function quitToMenu(){ saveGame(); if(started&&!gameOver) saveClassProg(); if(net&&net.peer){ try{ net.peer.destroy(); }catch(e){} } location.reload(); }
+function quitToMenu(){ saveGame(); if(started&&!gameOver) saveClassProg(); lobbyRemove(); if(net&&net.peer){ try{ net.peer.destroy(); }catch(e){} } location.reload(); }
 
 // =====================================================================
 // DEVELOPER ADMIN PANEL (gated by a secret code; not exposed to players)
