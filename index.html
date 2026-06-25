@@ -410,8 +410,6 @@ if('serviceWorker' in navigator){
 const WORLD={w:2600,h:2600};
 const SCORES_URL='https://survive-the-horde-default-rtdb.firebaseio.com/scores'; // global leaderboard (declared early — used at load)
 let _metaMem=null, _storageWarned=false;   // in-memory meta fallback (declared early — loadMeta runs at load)
-const PMETA_URL='https://survive-the-horde-default-rtdb.firebaseio.com/pmeta'; // cloud progress (declared early — used at load via saveMeta→pushCloudMeta)
-let _metaName=null, _cloudTimer=null;
 const CX=WORLD.w/2, CY=WORLD.h/2;
 // central buildable compound (a concrete pad) — build only allowed inside
 const ZONE={x:CX-340, y:CY-340, w:680, h:680};
@@ -660,7 +658,7 @@ buildClassCards();
   $('nameInput').value = nm || ('Survivor'+randi(1,99)); }
 if(devUnlocked()) $('nameInput').value='ADMIN'; // developers play as ADMIN
 if(/[?&]reset(=|&|$)/i.test(location.search)){ // one-click reset link: .../?reset — wipes credits/unlocks/abilities (local + cloud) with no dev panel needed
-  resetProgress($('nameInput').value);
+  resetProgress();
   try{ history.replaceState(null,'',location.pathname); }catch(e){} // strip ?reset so a refresh doesn't keep wiping
   buildClassCards(); if($('creditBal')) $('creditBal').textContent='💳 '+getCredits()+' credits';
   { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } // saved run wiped too
@@ -1972,7 +1970,7 @@ function adminAct(a){ const m=loadMeta();
     case 'genheal': if(generator) generator.hp=generator.maxhp; toast('Generator repaired'); break;
     case 'wipe': localStorage.removeItem('apocsurv_meta'); localStorage.removeItem('apocsurv_save'); localStorage.removeItem('apocsurv_scores'); toast('Cleared meta/save/scores'); break;
     case 'resetprog': { // full clean slate: credits/unlocks/abilities/saved run/local scores (local + cloud), keep dev access & global leaderboard
-      resetProgress(me.name||$('nameInput').value);
+      resetProgress();
       me.abLevel=0; if($('menu').style.display!=='none') buildClassCards();
       { const cb=$('continueBtn'); if(cb) cb.style.display='none'; }
       toast('Full reset — stats, items & classes cleared (local + cloud)'); break; }
@@ -2044,34 +2042,17 @@ const META_KEY='apocsurv_meta';
 function loadMeta(){ try{ const s=localStorage.getItem(META_KEY); if(s) return JSON.parse(s); }catch(e){} return _metaMem?JSON.parse(JSON.stringify(_metaMem)):{}; }
 function saveMeta(m){ _metaMem=JSON.parse(JSON.stringify(m)); // always keep it for this session
   try{ localStorage.setItem(META_KEY,JSON.stringify(m)); }
-  catch(e){ if(!_storageWarned){ _storageWarned=true; try{toast('⚠ Storage blocked — progress works this session but won\'t save after closing');}catch(_){} } }
-  pushCloudMeta(); } // mirror progress to the cloud (keyed by player name) so it survives even if local storage doesn't
+  catch(e){ if(!_storageWarned){ _storageWarned=true; try{toast('⚠ Storage blocked — progress works this session but won\'t save after closing');}catch(_){} } } }
 
-// ---- cloud-backed progress: credits/unlocks/abilities follow your NAME via Firebase, with localStorage as a cache ----
-// (PMETA_URL / _metaName / _cloudTimer are declared EARLY near SCORES_URL — they're used at load via saveMeta→pushCloudMeta)
-function metaKeyFor(name){ return String(name||'').toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,16); }
-function pushCloudMeta(){ if(!_metaName) return; if(_cloudTimer) clearTimeout(_cloudTimer);
-  _cloudTimer=setTimeout(()=>{ const m=loadMeta();
-    try{ fetch(PMETA_URL+'/'+_metaName+'.json',{method:'PUT',body:JSON.stringify({credits:m.credits||0,unlocked:m.unlocked||[],abil:m.abil||{},ts:Date.now()})}).catch(()=>{}); }catch(e){}
-  },700); }
-function resetProgress(name){ // FULL clean slate: credits/unlocks/abilities/per-class progress + saved run (weapons/stash/level/stats) + local scores, local AND cloud
-  _metaName=metaKeyFor(name)||_metaName; _metaMem={};
+// ---- progress is stored locally (localStorage). Cloud sync was removed: its "never lose / merge" design resurrected
+//      reset profiles and needed extra DB rules. Local-only is reliable and a reset stays a reset. ----
+function setMetaName(name){ try{ localStorage.setItem('apocsurv_name', name); }catch(e){} } // just remember the name
+function resetProgress(){ // FULL clean slate: credits/unlocks/abilities/per-class progress + saved run (weapons/stash/level/stats) + local scores
+  _metaMem={};
   try{ localStorage.setItem(META_KEY,'{}'); }catch(e){}            // credits, unlocked classes, ability levels, classProg, champions, lastClass
   try{ localStorage.removeItem('apocsurv_save'); }catch(e){}       // in-progress run: weapons, stash, level, skills, cash, scrap
   try{ localStorage.removeItem('apocsurv_scores'); }catch(e){}     // local high scores
-  if(_metaName){ try{ fetch(PMETA_URL+'/'+_metaName+'.json',{method:'PUT',body:JSON.stringify({credits:0,unlocked:[],abil:{},ts:Date.now()})}).catch(()=>{}); }catch(e){} } // force-overwrite cloud so the union-merge can't restore it
 }
-function setMetaName(name){ const k=metaKeyFor(name); if(!k||k===_metaName) return; _metaName=k;
-  try{ localStorage.setItem('apocsurv_name', name); }catch(e){}
-  fetch(PMETA_URL+'/'+k+'.json').then(r=>r.json()).then(cloud=>{ if(!cloud) return; // merge cloud into local (take the best of each — never lose progress)
-    const m=loadMeta();
-    m.credits=Math.max(m.credits||0, cloud.credits||0);
-    m.unlocked=Array.from(new Set([...(m.unlocked||[]), ...(cloud.unlocked||[])]));
-    m.abil=m.abil||{}; const ca=cloud.abil||{}; for(const kk in ca) m.abil[kk]=Math.max(m.abil[kk]||0, ca[kk]||0);
-    saveMeta(m); // writes local cache + re-pushes the merged union to cloud
-    try{ if($('creditBal')) $('creditBal').textContent='💳 '+getCredits()+' credits'; }catch(_){}
-    try{ if($('menu')&&getComputedStyle($('menu')).display!=='none') buildClassCards(); }catch(_){}
-  }).catch(()=>{}); }
 function monthKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function monthName(key){ const [y,mo]=(key||monthKey()).split('-'); return new Date(+y,+mo-1,1).toLocaleString(undefined,{month:'long',year:'numeric'}); }
 function isUnlocked(key){ const c=CLASSES[key]; if(!c||!(c.special||c.buy)) return true; return (loadMeta().unlocked||[]).includes(key); }
