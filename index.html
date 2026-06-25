@@ -141,6 +141,26 @@
   .gmenu .buy{background:#1d2615; border:1px solid #3f4d2a; color:var(--txt); border-radius:8px; padding:8px 12px; cursor:pointer; font-family:inherit; font-weight:bold; min-width:84px;}
   .gmenu .buy:hover:not(:disabled){border-color:var(--acc); background:#283418;}
   .gmenu .buy:disabled{opacity:.4; cursor:default;}
+  /* skill tree */
+  .sktree{display:flex; gap:14px; justify-content:center; align-items:flex-start;}
+  .skcol{display:flex; flex-direction:column; align-items:center; flex:1; min-width:0;}
+  .skbr{font-size:11px; letter-spacing:1.5px; font-weight:bold; margin-bottom:8px;}
+  .skline{width:3px; height:14px; background:#2a3320;}
+  .skline.on{background:var(--acc); box-shadow:0 0 6px rgba(127,206,75,.5);}
+  .sknode{width:100%; max-width:160px; background:#0e120b; border:1px solid #283019; border-radius:10px; padding:8px 8px 9px; text-align:center;}
+  .sknode.owned{border-color:#4a5d2c;}
+  .sknode.maxed{border-color:var(--acc); box-shadow:0 0 8px rgba(127,206,75,.25);}
+  .sknode.can{cursor:pointer; border-color:var(--acc2);}
+  .sknode.can:hover{background:#1a2113;}
+  .sknode.locked{opacity:.45;}
+  .skico{font-size:24px; line-height:1;}
+  .sknm{font-size:12px; font-weight:bold; margin:3px 0 1px;}
+  .sknm .sklv{color:var(--mut); font-weight:normal; font-size:11px;}
+  .skpips{display:flex; gap:3px; justify-content:center; margin:4px 0;}
+  .skpips i{width:11px; height:6px; border-radius:2px; background:#1c2418;}
+  .skpips i.on{background:var(--acc);}
+  .skd{font-size:9.5px; color:var(--mut); line-height:1.25;}
+  @media (max-width:600px){ .sktree{gap:6px;} .sknode{padding:6px 4px;} .skico{font-size:18px;} .sknm{font-size:10px;} .skd{font-size:8px;} .skpips i{width:8px;} }
   .gmenu .wtabs{display:flex; gap:8px; margin-bottom:12px;}
   .gmenu .wtab{flex:1; background:#0e120b; border:1px solid #283019; border-radius:8px; padding:8px; cursor:pointer; text-align:center; font-size:13px;}
   .gmenu .wtab.on{border-color:var(--acc); color:var(--acc);}
@@ -307,7 +327,7 @@
 <div id="menu">
   <h1>APOCALYPSE&nbsp;SURVIVORS</h1>
   <div class="tag">CO-OP TOP-DOWN SURVIVAL · CHOOSE YOUR CLASS · OUTLAST THE HORDE</div>
-  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 24 · 2026-06-25</div>
+  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 25 · 2026-06-25</div>
   <div style="margin-top:6px"><button id="menuResetBtn" style="background:#2a1414;border:1px solid #5a2a2a;color:#e7a; border-radius:6px;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">↺ Reset progress (Bio-Cores, classes, abilities)</button></div>
 
   <div class="panel" id="classPanel">
@@ -473,14 +493,23 @@ const BUILD_KEYS=Object.keys(BUILDABLES);
 // upgrade bench — a fixed station inside the compound
 const BENCH={x:CX, y:CY-260, r:30};
 // skill tree (spend skill points earned on level-up)
+// Skill TREE: 3 branches (Offense / Defense / Utility), each a chain of tiers.
+// A node unlocks once its `req` (the node above it) has ≥1 point. `unlock` = boss-gated capstone.
+const SKILL_BRANCHES=[{name:'OFFENSE',color:'#ff7a30'},{name:'DEFENSE',color:'#6fd6ff'},{name:'UTILITY',color:'#7fce4b'}];
 const SKILLS=[
-  {key:'vitality',  name:'Vitality',   desc:'+15% max health',          max:5, icon:'❤️'},
-  {key:'power',     name:'Power',       desc:'+10% weapon damage',       max:5, icon:'💥'},
-  {key:'agility',   name:'Agility',     desc:'+8% move speed',           max:5, icon:'🥾'},
-  {key:'quickhands',name:'Quick Hands', desc:'+12% reload speed',        max:5, icon:'🔄'},
-  {key:'tactician', name:'Tactician',   desc:'-10% ability cooldown',    max:5, icon:'⏱️'},
-  {key:'scavenger', name:'Scavenger',   desc:'+15% cash, scrap & XP',    max:5, icon:'💰'},
-  {key:'magnet',    name:'Scrap Magnet', desc:'Pulls nearby loot toward you', max:3, icon:'🧲', unlock:'magnet'},
+  // OFFENSE
+  {key:'power',     branch:0, tier:0,             name:'Power',       desc:'+10% weapon damage',        max:5, icon:'💥'},
+  {key:'quickhands',branch:0, tier:1, req:'power', name:'Quick Hands', desc:'+12% reload speed',         max:5, icon:'🔄'},
+  {key:'deadeye',   branch:0, tier:2, req:'quickhands', name:'Deadeye', desc:'+8% weapon damage',        max:5, icon:'🎯'},
+  // DEFENSE
+  {key:'vitality',  branch:1, tier:0,                name:'Vitality',  desc:'+15% max health',          max:5, icon:'❤️'},
+  {key:'bulwark',   branch:1, tier:1, req:'vitality', name:'Bulwark',   desc:'+4% damage reduction',     max:5, icon:'🛡️'},
+  {key:'mending',   branch:1, tier:2, req:'bulwark',  name:'Mending',   desc:'+1 HP/sec regeneration',   max:5, icon:'➕'},
+  // UTILITY
+  {key:'agility',   branch:2, tier:0,                 name:'Agility',   desc:'+8% move speed',           max:5, icon:'🥾'},
+  {key:'scavenger', branch:2, tier:1, req:'agility',  name:'Scavenger', desc:'+15% cash, scrap & XP',    max:5, icon:'💰'},
+  {key:'tactician', branch:2, tier:2, req:'scavenger',name:'Tactician', desc:'-10% ability cooldown',    max:5, icon:'⏱️'},
+  {key:'magnet',    branch:2, tier:3, req:'tactician', unlock:'magnet', name:'Scrap Magnet', desc:'Pulls nearby loot toward you (boss-locked)', max:3, icon:'🧲'},
 ];
 // weapon upgrade tracks (spend scrap at the bench)
 const WUP=[
@@ -728,7 +757,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshC
 addEventListener('focus',()=>refreshCores());
 addEventListener('load',()=>refreshCores()); // re-sync the saved Bio-Cores total once everything's initialized (guards against a stale 0 at first paint)
 // build badge shows actual saved data, so stale-cache vs data issues are diagnosable at a glance
-function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 24 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
+function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 25 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
 updateVerBadge();
 // visible manual reset (no dev panel / URL needed) — clears Bio-Cores, unlocks, abilities, save
 $('menuResetBtn').onclick=()=>{ resetProgress(); buildClassCards(); refreshCores(); updateVerBadge(); { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } try{toast('Progress reset — clean slate');}catch(e){} };
@@ -1111,7 +1140,7 @@ function healArea(x,y,r,amt){
 // =====================================================================
 function applySkills(){
   const s=me.skills, c=CLASSES[me.cls];
-  me.dmgMul    = 1 + 0.10*(s.power||0);
+  me.dmgMul    = 1 + 0.10*(s.power||0) + 0.08*(s.deadeye||0);
   me.speedMul  = 1 + 0.08*(s.agility||0);
   me.reloadMul = 1/(1 + 0.12*(s.quickhands||0));
   me.cdMul     = Math.max(0.4, 1 - 0.10*(s.tactician||0));
@@ -1119,6 +1148,9 @@ function applySkills(){
   me.magnetR   = (s.magnet||0)>0 ? 110 + (s.magnet||0)*70 : 0;
   // ability-upgrade passives (cumulative, one per upgrade level)
   me.regen=0; me.passiveDR=1; let hpMul=1;
+  // skill-tree passives
+  me.regen += (s.mending||0);
+  me.passiveDR *= (1 - 0.04*(s.bulwark||0));
   const perks=ABIL_PERKS[me.cls]||[];
   for(let i=0; i<(me.abLevel||0) && i<perks.length; i++){ const p=perks[i].fx;
     if(p.dmg)    me.dmgMul   *= (1+p.dmg);
@@ -1144,6 +1176,7 @@ function onLevelUp(){
 function buySkill(key){
   if(me.skillPoints<=0) return; const sk=SKILLS.find(s=>s.key===key); if(!sk) return;
   if(sk.unlock&&!metaHas(sk.unlock)){ toast('Locked — slay your first boss'); return; }
+  if(sk.req && (me.skills[sk.req]||0)<1){ const r=SKILLS.find(s=>s.key===sk.req); toast('Unlock '+(r?r.name:'the prior skill')+' first'); return; }
   const lvl=me.skills[key]||0; if(lvl>=sk.max){ toast('Maxed out'); return; }
   me.skills[key]=lvl+1; me.skillPoints--; applySkills(); saveClassProg(); renderPanel('skills'); refreshHud();
 }
@@ -2145,15 +2178,29 @@ function equipFromStash(i){ const g=me.stash[i]; if(!g) return;
   else { const slot=me.gunIdx>0?me.gunIdx:1; const out=me.guns[slot]; me.guns[slot]=g; me.stash.splice(i,1); if(out&&!out.spec.melee) me.stash.push(out); me.gunIdx=slot; }
   me.reloading=0; refreshHud(); refreshHotbar(); renderInventory(); }
 function renderSkills(){
-  $('skillsBox').innerHTML=`<h2>★ SKILLS</h2>
-    <div class="ghead"><span>Level <b>${me.level}</b> · XP ${Math.floor(me.xp)}/${me.xpNext}</span><span>Points: <b>${me.skillPoints}</b></span></div>`
-    + SKILLS.map(sk=>{ const lvl=me.skills[sk.key]||0; const locked=sk.unlock&&!metaHas(sk.unlock); const can=!locked&&me.skillPoints>0&&lvl<sk.max;
-      return `<div class="skrow" ${locked?'style="opacity:.55"':''}><div class="si">${locked?'🔒':sk.icon}</div>
-        <div class="sm"><div class="snm">${sk.name} <span style="color:var(--mut);font-weight:normal">${lvl}/${sk.max}</span></div>
-        <div class="sd">${locked?'Slay your first boss to unlock':sk.desc}</div>
-        <div class="pips">${Array.from({length:sk.max},(_,i)=>`<i class="${i<lvl?'on':''}"></i>`).join('')}</div></div>
-        <button class="buy" ${can?'':'disabled'} onclick="buySkill('${sk.key}')">${locked?'🔒':(lvl>=sk.max?'MAX':'Upgrade')}</button></div>`; }).join('')
-    + `<div class="closeRow"><button class="btn primary" onclick="closePanel()">Close (K)</button></div>`;
+  const cols=SKILL_BRANCHES.map((br,bi)=>{
+    const nodes=SKILLS.filter(s=>s.branch===bi).sort((a,b)=>a.tier-b.tier);
+    const cells=nodes.map((sk,idx)=>{
+      const lvl=me.skills[sk.key]||0;
+      const bossLocked=sk.unlock&&!metaHas(sk.unlock);
+      const reqLvl=sk.req?(me.skills[sk.req]||0):1;
+      const reqLocked=sk.req&&reqLvl<1;
+      const locked=bossLocked||reqLocked;
+      const can=!locked&&me.skillPoints>0&&lvl<sk.max;
+      const line=idx>0?`<div class="skline ${(me.skills[nodes[idx-1].key]||0)>=1?'on':''}"></div>`:'';
+      const sub=bossLocked?'🔒 Slay a boss':(reqLocked?('🔒 Needs '+((SKILLS.find(s=>s.key===sk.req)||{}).name||'prior')):sk.desc);
+      return `${line}<div class="sknode ${locked?'locked':''} ${lvl>0?'owned':''} ${lvl>=sk.max?'maxed':''} ${can?'can':''}" ${can?`onclick="buySkill('${sk.key}')"`:''}>
+        <div class="skico">${locked?'🔒':sk.icon}</div>
+        <div class="sknm">${sk.name} <span class="sklv">${lvl}/${sk.max}</span></div>
+        <div class="skpips">${Array.from({length:sk.max},(_,i)=>`<i class="${i<lvl?'on':''}"></i>`).join('')}</div>
+        <div class="skd">${sub}</div></div>`;
+    }).join('');
+    return `<div class="skcol"><div class="skbr" style="color:${br.color}">${br.name}</div>${cells}</div>`;
+  }).join('');
+  $('skillsBox').innerHTML=`<h2>★ SKILL TREE</h2>
+    <div class="ghead"><span>Level <b>${me.level}</b> · XP ${Math.floor(me.xp)}/${me.xpNext}</span><span>Skill points: <b style="color:var(--acc)">${me.skillPoints}</b></span></div>
+    <div class="sktree">${cols}</div>
+    <div class="closeRow"><button class="btn primary" onclick="closePanel()">Close (K)</button></div>`;
 }
 function renderUpgrade(){
   const g=curGun();
