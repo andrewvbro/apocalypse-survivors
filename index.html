@@ -1921,6 +1921,7 @@ function renderAdmin(){
   const tog=(label,key)=>`<button class="abtn${dev[key]?' on':''}" data-tog="${key}">${label}: <b>${dev[key]?'ON':'OFF'}</b></button>`;
   const act=(label,id)=>`<button class="abtn" data-act="${id}">${label}</button>`;
   $('admin').innerHTML=`<div class="ahead">🛠 DEV PANEL<span data-act="close" class="aclose">✕</span></div>
+    <div style="font-size:11px;color:#9fb0c0;margin-bottom:6px;line-height:1.5">💳 ${getCredits()} credits · 💵 $${me.cash||0} · ⚙ ${me.scrap||0} scrap<br><span style="color:#7f8a72">credits are spent on the class-select screen</span></div>
     <div class="agrp">Cheats</div>${tog('God mode','god')}${tog('Infinite ammo','infAmmo')}${tog('One-shot kills','oneShot')}${tog('Invincible generator','godGen')}
     <div class="agrp">Give</div>${act('+$1000','cash')}${act('+500 scrap','scrap')}${act('+100 credits','credits')}${act('+5 skill pts','sp')}${act('+5000 XP','xp')}${act('Full heal','heal')}
     <div class="agrp">Weapons</div>${act('Random weapon','rweap')}${act('All weapons','allweap')}
@@ -2098,13 +2099,14 @@ function lbRowHTML(e,i,hi){ return `<div class="lrow"${e.score===hi?' style="bac
     <span class="who">${esc(e.name||'?')} <span class="det">${(CLASSES[e.cls]||{name:''}).name||''}</span></span>
     <span><span class="det">Day ${e.days||1} · W${e.wave||0} · ${e.kills||0}☣</span> &nbsp;<span class="sc">${(e.score||0).toLocaleString()}</span></span>
   </div>`; }
-function renderLocalLB(hi){ const el=$('lbList'); if(!el) return; const s=loadScores();
+function dedupeScores(list){ const m={}; for(const e of list){ if(!e||!e.name||typeof e.score!=='number')continue; const k=(''+e.name).toLowerCase(); if(!m[k]||e.score>m[k].score) m[k]=e; } return Object.values(m).sort((a,b)=>b.score-a.score); }
+function renderLocalLB(hi){ const el=$('lbList'); if(!el) return; const s=dedupeScores(loadScores());
   if(!s.length){ el.innerHTML='<div class="empty">No runs yet — survive to set a record.</div>'; return; }
   el.innerHTML='<div style="font-size:11px;color:var(--mut);margin-bottom:5px">📁 Local scores (offline)</div>'+s.map((e,i)=>lbRowHTML(e,i,hi)).join(''); }
 function renderLeaderboard(hi){ const el=$('lbList'); if(!el) return;
   el.innerHTML='<div class="empty">Loading global leaderboard…</div>';
   fetch(SCORES_URL+'.json').then(r=>r.json()).then(data=>{
-    const list=Object.values(data||{}).filter(e=>e&&typeof e.score==='number').sort((a,b)=>b.score-a.score).slice(0,12);
+    const list=dedupeScores(Object.values(data||{})).slice(0,12); // one entry per player (their best)
     if(!list.length){ renderLocalLB(hi); return; }
     el.innerHTML='<div style="font-size:11px;color:var(--acc2);margin-bottom:5px">🌐 Global top scores</div>'+list.map((e,i)=>lbRowHTML(e,i,hi)).join('');
   }).catch(()=>renderLocalLB(hi));

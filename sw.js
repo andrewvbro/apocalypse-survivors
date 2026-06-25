@@ -1,5 +1,5 @@
-// Apocalypse Survivors — service worker (offline app shell)
-const CACHE = 'apoc-v1';
+// Apocalypse Survivors — service worker (network-first so updates load immediately; cache = offline fallback)
+const CACHE = 'apoc-v2';
 const ASSETS = ['./', './index.html', './vendor/peerjs.min.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', e => {
@@ -10,8 +10,12 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
-  // only handle our own origin; let Firebase / PeerJS network calls pass straight through
-  if (u.origin === location.origin && e.request.method === 'GET') {
-    e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
-  }
+  if (u.origin !== location.origin || e.request.method !== 'GET') return; // let Firebase/PeerJS pass through
+  e.respondWith(
+    fetch(e.request).then(res => {
+      const copy = res.clone();
+      caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+      return res;
+    }).catch(() => caches.match(e.request))
+  );
 });
