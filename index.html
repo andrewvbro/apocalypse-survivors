@@ -1861,7 +1861,7 @@ function refreshHud(){
   $('hudHpLab').textContent=Math.ceil(me.hp)+'/'+me.maxhp;
   $('hudStFill').style.width=clamp(me.stamina/me.maxStamina,0,1)*100+'%';
   $('hudScrap').textContent=me.scrap;
-  $('hudCores').textContent=getCores();
+  { const c=getCores(); $('hudCores').textContent=c; const cb=$('coreBal'); if(cb) cb.textContent='☣ '+c+' Bio-Cores'; } // keep HUD + main-menu Bio-Cores in sync
   $('hudLevel').textContent='Lv '+me.level;
   $('hudXpFill').style.width=clamp(me.xp/me.xpNext,0,1)*100+'%';
   const si=$('skillInd'); if(me.skillPoints>0){ si.style.display='block'; $('skillPts').textContent=me.skillPoints; } else si.style.display='none';
