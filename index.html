@@ -288,7 +288,7 @@
 <div id="menu">
   <h1>APOCALYPSE&nbsp;SURVIVORS</h1>
   <div class="tag">CO-OP TOP-DOWN SURVIVAL · CHOOSE YOUR CLASS · OUTLAST THE HORDE</div>
-  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 21 · 2026-06-25</div>
+  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 22 · 2026-06-25</div>
   <div style="margin-top:6px"><button id="menuResetBtn" style="background:#2a1414;border:1px solid #5a2a2a;color:#e7a; border-radius:6px;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">↺ Reset progress (Bio-Cores, classes, abilities)</button></div>
 
   <div class="panel" id="classPanel">
@@ -704,7 +704,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshC
 addEventListener('focus',()=>refreshCores());
 addEventListener('load',()=>refreshCores()); // re-sync the saved Bio-Cores total once everything's initialized (guards against a stale 0 at first paint)
 // build badge shows actual saved data, so stale-cache vs data issues are diagnosable at a glance
-function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 21 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
+function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 22 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
 updateVerBadge();
 // visible manual reset (no dev panel / URL needed) — clears Bio-Cores, unlocks, abilities, save
 $('menuResetBtn').onclick=()=>{ resetProgress(); buildClassCards(); refreshCores(); updateVerBadge(); { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } try{toast('Progress reset — clean slate');}catch(e){} };
@@ -1397,6 +1397,20 @@ function updateBots(dt){
   const t=now();
   for(const b of bots){ if(!b.alive) continue;
     if(b.downed){ if(t>b.downT) botDie(b); continue; } // downed: bleed out unless revived
+    // PRIORITY: rush to revive a downed ally (the player or another downed bot)
+    { let ally=null, ad=1e9;
+      if(me.downed){ const d=dist(b.x,b.y,me.x,me.y); if(d<ad){ad=d; ally={x:me.x,y:me.y,who:'me'};} }
+      for(const o of bots){ if(o!==b && o.alive && o.downed){ const d=dist(b.x,b.y,o.x,o.y); if(d<ad){ad=d; ally={x:o.x,y:o.y,who:o};} } }
+      for(const id in players){ const p=players[id]; if(p.alive && p.downed){ const d=dist(b.x,b.y,p.x,p.y); if(d<ad){ad=d; ally={x:p.x,y:p.y,who:p};} } }
+      if(ally){ b.aim=Math.atan2(ally.y-b.y,ally.x-b.x);
+        if(ad>40){ b.x=clamp(b.x+Math.cos(b.aim)*b.speed*dt,20,WORLD.w-20); b.y=clamp(b.y+Math.sin(b.aim)*b.speed*dt,20,WORLD.h-20); b.reviveT=0; }
+        else { b.reviveT=(b.reviveT||0)+dt; b.reviving=true;
+          if(b.reviveT>=1.5){ b.reviveT=0;
+            if(ally.who==='me'){ me.downed=false; me.hp=me.maxhp*0.4; toast('Revived by '+b.name); }
+            else { const o=ally.who; o.downed=false; o.hp=o.maxhp*0.5; if(!o.isBot && net) net.send({t:'revive',who:o.id}); toast(b.name+' revived '+esc(o.name)); } } }
+        continue; // don't fight while reviving
+      } else { b.reviveT=0; b.reviving=false; }
+    }
     // find nearest zombie
     let tz=null,bd=1e9; for(const z of zombies){ if(!z.alive)continue; const d=dist(b.x,b.y,z.x,z.y); if(d<bd){bd=d;tz=z;} }
     if(tz){ b.aim=Math.atan2(tz.y-b.y,tz.x-b.x);
@@ -1609,9 +1623,7 @@ function updateMe(dt){
   else { me.aim=Math.atan2(mouse.wy-me.y,mouse.wx-me.x); }
   // downed: can't move, bleed out
   if(me.downed){ me.hp=Math.max(0,me.hp); if(t>me.downT){ dieFinal(); }
-    // ally revive proximity (a healthy bot can pick you up)
-    for(const b of bots){ if(b.alive&&!b.downed&&dist(b.x,b.y,me.x,me.y)<40){ me.downed=false; me.hp=me.maxhp*0.4; toast('Revived by '+b.name); break; } }
-    return; }
+    return; } // a healthy bot will rush over and revive you (handled in updateBots)
   if(me.regen>0 && me.hp<me.maxhp) me.hp=Math.min(me.maxhp, me.hp+me.regen*dt); // ability-upgrade passive regen (Medic)
   let mx=0,my=0;
   if(keys['w']||keys['arrowup'])my-=1; if(keys['s']||keys['arrowdown'])my+=1;
