@@ -105,6 +105,7 @@
   #pause .btn{display:block; width:100%; margin:8px 0;}
   /* progression HUD */
   #topbar .scrap{color:#a6b0bc;}
+  #topbar .cores{color:#ffe27a;}
   #classline #hudLevel{margin-left:auto; color:#ffe27a; font-size:12px; background:#1c2418; border:1px solid #3f4d2a; border-radius:6px; padding:1px 7px;}
   .bar .xp{background:linear-gradient(90deg,#9a6fd6,#ffe27a);}
   #skillInd{position:absolute; top:54px; left:14px; pointer-events:auto; cursor:pointer; font-size:13px; color:#ffe27a;
@@ -219,9 +220,10 @@
   <div id="topbar">
     <span class="day" id="hudDay">☀ DAY 1</span>
     <span class="wave" id="hudWave">WAVE 1</span>
-    <span class="enemies">☣ <b id="hudEnemies">0</b></span>
+    <span class="enemies">🧟 <b id="hudEnemies">0</b></span>
     <span class="cash">$<b id="hudCash">0</b></span>
     <span class="scrap">⚙ <b id="hudScrap">0</b></span>
+    <span class="cores" id="hudCoresWrap">☣ <b id="hudCores">0</b></span>
     <span class="ping" id="hudPlayers" style="color:var(--mut)"></span>
   </div>
   <div id="skillInd" onclick="openPanel('skills')">★ <b id="skillPts">0</b> skill pts — press K</div>
@@ -1575,7 +1577,7 @@ function updateWaves(dt){
     const cr=Math.max(1,Math.round(wave*1.5)*(isBloodMoon?2:1)); // bank Bio-Cores every wave (persists immediately)
     { const mm=loadMeta(); mm.cores=(mm.cores||0)+cr; saveMeta(mm); }
     isBloodMoon=false; $('bloodmoon').classList.remove('on');
-    toast('Wave '+wave+' cleared! +$'+reward+' · +'+waveXp+' XP · +'+cr+' 💳',1800);
+    toast('Wave '+wave+' cleared! +$'+reward+' · +'+waveXp+' XP · +'+cr+' ☣ Bio-Cores',1800);
     scheduleNextWave(7000); saveGame(); saveClassProg(); banner('WAVE CLEARED','Build up — next wave in 7s'); setTimeout(hideBanner,1900); refreshHud(); }
 }
 
@@ -1857,6 +1859,7 @@ function refreshHud(){
   $('hudHpLab').textContent=Math.ceil(me.hp)+'/'+me.maxhp;
   $('hudStFill').style.width=clamp(me.stamina/me.maxStamina,0,1)*100+'%';
   $('hudScrap').textContent=me.scrap;
+  $('hudCores').textContent=getCores();
   $('hudLevel').textContent='Lv '+me.level;
   $('hudXpFill').style.width=clamp(me.xp/me.xpNext,0,1)*100+'%';
   const si=$('skillInd'); if(me.skillPoints>0){ si.style.display='block'; $('skillPts').textContent=me.skillPoints; } else si.style.display='none';
