@@ -1466,16 +1466,18 @@ function damageMe(dmg){
   if(t-(me._hurtSfx||0)>180){ me._hurtSfx=t; SFX.hurt(); }
   if(me.hp<=0 && !me.downed && !me.dead){
     me.hp=0; SFX.down();
-    const others=allTargets().length;
-    if(others>1){ me.downed=true; me.downT=t+12000; if(net) net.send({t:'down'}); toast('You are down — a teammate can revive you!'); }
+    // only go "downed" (revivable) if someone can actually revive you — a living bot or human teammate.
+    // (the generator is a target too, but it can't revive, so it must NOT count here.)
+    const canRevive = bots.some(b=>b.alive) || Object.values(players).some(p=>p.alive&&!p.downed&&!p.dead);
+    if(canRevive){ me.downed=true; me.downT=t+12000; if(net) net.send({t:'down'}); toast('You are down — a teammate can revive you!'); }
     else { dieFinal(); }
   }
 }
 function dieFinal(){ me.dead=true; me.alive=false; if(net) net.send({t:'down'}); checkAllDown(); }
 function checkAllDown(){
-  // solo / single: game over when player dead and no living teammates
-  const living=allTargets().filter(t=>t.kind!=='me').length;
-  if((me.dead) && living===0){ doGameOver(false); }
+  // game over once YOU are dead and no living HUMAN teammate remains (bots & the generator don't keep your run alive)
+  const livingMates=Object.values(players).filter(p=>p.alive&&!p.dead).length;
+  if(me.dead && livingMates===0){ doGameOver(false); }
 }
 
 // =====================================================================
