@@ -8,6 +8,20 @@ A fast, single-file **co-op top-down survival shooter**. Pick a class, scavenge 
 
 Works in any modern browser, on desktop or mobile. No download.
 
+## ⬇ Install as an app
+
+It's a full **PWA** — install it and it runs like a native app, offline:
+
+- **Desktop (Chrome/Edge):** open the play link and click the **Install** icon in the address bar (or ⋮ menu → *Install Apocalypse Survivors*).
+- **Android:** open the link → menu → **Add to Home screen / Install app**.
+- **iOS (Safari):** Share → **Add to Home Screen**.
+
+Once installed it launches fullscreen from your home screen / app list and works without a connection (co-op still needs internet).
+
+## 📷 Screenshots
+
+In-game, press **`P`** or click the **📷** button (top-right) to download a PNG of your current screen.
+
 ## 👥 Play with friends (co-op)
 
 1. Click **Host Co-op** — you get a 4-letter room code + a copyable invite link.

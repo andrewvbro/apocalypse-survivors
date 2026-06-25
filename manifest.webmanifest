@@ -1,0 +1,14 @@
+{
+  "name": "Apocalypse Survivors",
+  "short_name": "Apocalypse",
+  "description": "Co-op top-down zombie survival shooter — classes, weapon scavenging, base building, bosses.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0a0d0a",
+  "theme_color": "#7fce4b",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
