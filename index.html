@@ -155,6 +155,7 @@
   .ccard.locked:hover{transform:none; border-color:#283019;}
   .ccard.sel.locked{filter:none;}
   .ccard .lock{font-size:13px;}
+  .ccard .clvl{margin-left:auto; font-size:11px; color:#ffe27a; background:#1c2418; border:1px solid #3f4d2a; border-radius:5px; padding:1px 6px;}
   .ccard .lockmsg{margin-top:8px; font-size:11px; color:#ff8c6b;}
   .ccard .buybtn{margin-top:8px; width:100%; background:#2a3a1a; border:1px solid #ffe27a; color:#ffe27a; border-radius:7px; padding:7px; cursor:pointer; font-family:inherit; font-weight:bold; font-size:13px;}
   .ccard .buybtn:hover{background:#3a4d22;}
@@ -594,7 +595,7 @@ function buildClassCards(){
     const lockMsg = locked ? (c.buy ? (c.special?'Buy with credits, or finish monthly Top 3':'Buy with credits') : 'Finish monthly Top 3 to unlock') : '';
     const canBuy = locked && c.buy && getCredits()>=c.buy;
     const d=document.createElement('div'); d.className='ccard'+(key===selectedClass?' sel':'')+(locked?' locked':''); d.dataset.k=key;
-    d.innerHTML=`<div class="cname"><span class="ico" style="background:${c.color}22;border:1px solid ${c.color}">${c.icon}</span>${c.name}${locked?' <span class="lock">🔒</span>':''}</div>
+    d.innerHTML=`<div class="cname"><span class="ico" style="background:${c.color}22;border:1px solid ${c.color}">${c.icon}</span>${c.name}${locked?' <span class="lock">🔒</span>':`<span class="clvl">Lv ${classLevel(key)}</span>`}</div>
       <div class="crole">${c.role}</div>
       <div class="cdesc">${c.desc}</div>
       <div class="cab">★ ${c.abName} — ${c.abDesc}</div>
@@ -656,7 +657,7 @@ function startGame(opts){
   me.x=CX+rand(-40,40); me.y=CY+150; me.alive=true; me.dead=false; me.downed=false; me.cash=hardMode?80:150; me.kills=0;
   me.stamina=me.maxStamina; buildMode=false; structures=[]; hazards=[]; isBloodMoon=false; drones=[]; turrets=[]; repairDrones=[];
   generator={x:CX,y:CY,hp:1500,maxhp:1500,r:30};
-  me.scrap=0; me.xp=0; me.level=1; me.xpNext=xpForLevel(1); me.skillPoints=0; me.skills={}; applySkills();
+  me.scrap=0; const cp=loadClassProg(me.cls); me.level=cp.level; me.xp=cp.xp; me.xpNext=cp.xpNext; me.skillPoints=cp.sp; me.skills=Object.assign({},cp.skills); applySkills();
   me.abLevel=abilityLevel(me.cls);
   survivalT=0; lastDay=1; me.fireRingUntil=0; me.dmgBuffUntil=0; me.zoomUntil=0; me.ab2Ready=0; camZoom=1; camZoomTarget=1; clearSave();
   paused=false; openMenu=null; $('skills').style.display='none'; $('upgrade').style.display='none'; $('inv').style.display='none'; $('pause').style.display='none';
@@ -959,7 +960,7 @@ function gainXp(amt){
   while(me.xp>=me.xpNext){ me.xp-=me.xpNext; me.level++; me.skillPoints++; me.xpNext=xpForLevel(me.level); onLevelUp(); }
 }
 function onLevelUp(){
-  applySkills(); me.hp=me.maxhp; SFX.levelUp();
+  applySkills(); me.hp=me.maxhp; SFX.levelUp(); saveClassProg();
   toast('LEVEL '+me.level+'! +1 skill point — press K',2200);
   for(let i=0;i<22;i++){ const a=i/22*TAU; particles.push({x:me.x,y:me.y,vx:Math.cos(a)*160,vy:Math.sin(a)*160,life:.6,col:'#ffe27a',r:4}); }
 }
@@ -967,7 +968,7 @@ function buySkill(key){
   if(me.skillPoints<=0) return; const sk=SKILLS.find(s=>s.key===key); if(!sk) return;
   if(sk.unlock&&!metaHas(sk.unlock)){ toast('Locked — slay your first boss'); return; }
   const lvl=me.skills[key]||0; if(lvl>=sk.max){ toast('Maxed out'); return; }
-  me.skills[key]=lvl+1; me.skillPoints--; applySkills(); renderPanel('skills'); refreshHud();
+  me.skills[key]=lvl+1; me.skillPoints--; applySkills(); saveClassProg(); renderPanel('skills'); refreshHud();
 }
 // scrap weapon upgrades
 function nearBench(){ return dist(me.x,me.y,BENCH.x,BENCH.y)<70; }
@@ -1224,7 +1225,7 @@ function killZombie(z,by){
     if(b){ b.kills++; }
     else { const p=players[by]; if(p){ p.kills++; if(net) net.send({t:'kill',who:by,cash:s.cash,xp:Math.round(s.score*12),scrap:Math.max(1,Math.round(s.score*0.7))}); } } }
   // first boss kill unlocks the Scrap Magnet skill
-  if(z.boss && (by===me.id||by===undefined) && unlockClass('magnet')){ me.skillPoints++; SFX.levelUp(); toast('🧲 First boss slain — Scrap Magnet unlocked! (+1 skill point, press K)',3000); }
+  if(z.boss && (by===me.id||by===undefined) && unlockClass('magnet')){ me.skillPoints++; saveClassProg(); SFX.levelUp(); toast('🧲 First boss slain — Scrap Magnet unlocked! (+1 skill point, press K)',3000); }
   // drops
   if(z.boss){ pickups.push({id:zidSeq++,x:z.x,y:z.y,kind:'health'}); pickups.push({id:zidSeq++,x:z.x+22,y:z.y,kind:'scrap'}); pickups.push({id:zidSeq++,x:z.x-22,y:z.y,kind:'scrap'});
     pickups.push({id:zidSeq++,x:z.x,y:z.y-22,kind:'weapon',wtype:WEAPON_DROPS[randi(0,WEAPON_DROPS.length-1)]}); }
@@ -1492,7 +1493,7 @@ function updateWaves(dt){
     const waveXp=Math.round((50+wave*20)*(isBloodMoon?2:1)); gainXp(waveXp);
     isBloodMoon=false; $('bloodmoon').classList.remove('on');
     toast('Wave '+wave+' cleared! +$'+reward+' · +'+waveXp+' XP',1800);
-    scheduleNextWave(7000); saveGame(); banner('WAVE CLEARED','Build up — next wave in 7s'); setTimeout(hideBanner,1900); refreshHud(); }
+    scheduleNextWave(7000); saveGame(); saveClassProg(); banner('WAVE CLEARED','Build up — next wave in 7s'); setTimeout(hideBanner,1900); refreshHud(); }
 }
 
 // =====================================================================
@@ -1830,7 +1831,7 @@ function openPanel(id){ if(!started||gameOver||openMenu) return; openMenu=id; pa
   $(id).style.display='flex'; }
 function closePanel(){ if(!openMenu) return; $(openMenu).style.display='none'; openMenu=null; paused=false; }
 function togglePause(){ if(openMenu==='pause') closePanel(); else if(!openMenu) openPanel('pause'); }
-function quitToMenu(){ saveGame(); if(net&&net.peer){ try{ net.peer.destroy(); }catch(e){} } location.reload(); }
+function quitToMenu(){ saveGame(); if(started&&!gameOver) saveClassProg(); if(net&&net.peer){ try{ net.peer.destroy(); }catch(e){} } location.reload(); }
 
 // =====================================================================
 // DEVELOPER ADMIN PANEL (gated by a secret code; not exposed to players)
@@ -1944,6 +1945,13 @@ function metaHas(key){ return (loadMeta().unlocked||[]).includes(key); }
 function unlockClass(key){ const m=loadMeta(); m.unlocked=m.unlocked||[]; if(!m.unlocked.includes(key)){ m.unlocked.push(key); saveMeta(m); return true; } return false; }
 function getCredits(){ return loadMeta().credits||0; }
 function abilityLevel(key){ return (loadMeta().abil||{})[key]||0; }
+// per-class progression that persists across runs (level/xp/skill points/skill allocation)
+function loadClassProg(cls){ const p=(loadMeta().classProg||{})[cls];
+  return p ? {level:p.level||1, xp:p.xp||0, xpNext:p.xpNext||xpForLevel(p.level||1), sp:p.sp||0, skills:p.skills||{}}
+           : {level:1, xp:0, xpNext:xpForLevel(1), sp:0, skills:{}}; }
+function saveClassProg(){ if(!me.cls) return; const m=loadMeta(); m.classProg=m.classProg||{};
+  m.classProg[me.cls]={level:me.level, xp:me.xp, xpNext:me.xpNext, sp:me.skillPoints, skills:me.skills}; saveMeta(m); }
+function classLevel(cls){ return loadClassProg(cls).level; }
 function buyAbilityUp(key){ const lvl=abilityLevel(key); if(lvl>=3){ toast('Ability maxed'); return; } const cost=20*(lvl+1);
   if(getCredits()<cost){ toast('Need '+cost+' credits'); return; }
   const m=loadMeta(); m.credits=(m.credits||0)-cost; m.abil=m.abil||{}; m.abil[key]=lvl+1; saveMeta(m);
@@ -2014,7 +2022,7 @@ function renderLeaderboard(hi){
 function doGameOver(victory){
   if(gameOver) return; gameOver=true;
   if(net) net.send({t:'gameover'});
-  SFX.gameOver(); clearSave(); // the run is over
+  SFX.gameOver(); saveClassProg(); clearSave(); // the run is over (class level persists)
   const days=currentDay();
   const score=wave*1000+me.kills*50+me.cash+(days-1)*400;
   const top=saveScore({name:me.name,cls:me.cls,wave,kills:me.kills,cash:me.cash,days,score});
