@@ -283,7 +283,7 @@
 <div id="menu">
   <h1>APOCALYPSE&nbsp;SURVIVORS</h1>
   <div class="tag">CO-OP TOP-DOWN SURVIVAL · CHOOSE YOUR CLASS · OUTLAST THE HORDE</div>
-  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 17 · 2026-06-25</div>
+  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 18 · 2026-06-25</div>
   <div style="margin-top:6px"><button id="menuResetBtn" style="background:#2a1414;border:1px solid #5a2a2a;color:#e7a; border-radius:6px;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">↺ Reset progress (Bio-Cores, classes, abilities)</button></div>
 
   <div class="panel" id="classPanel">
@@ -520,6 +520,20 @@ const CLASSES={
 };
 const CLASS_KEYS=Object.keys(CLASSES);
 
+// Ability-upgrade PERKS: each class gains a passive at Lv1/2/3 (cumulative). Lv3 also unlocks the Ultimate (Q).
+// fx keys: dmg/speed/reload = % multipliers, cd = % cooldown cut, hp = % max-HP, regen = HP/sec, dr = % damage reduction.
+const ABIL_PERKS={
+  soldier:  [{label:'+12% weapon damage',fx:{dmg:.12}}, {label:'+20% reload speed',fx:{reload:.20}}, {label:'+15% damage · Ultimate (Q)',fx:{dmg:.15}}],
+  heavy:    [{label:'+20% max HP',fx:{hp:.20}},        {label:'12% passive armor',fx:{dr:.12}},      {label:'+20% max HP · Ultimate (Q)',fx:{hp:.20}}],
+  medic:    [{label:'Regen 2 HP/s',fx:{regen:2}},      {label:'Regen +3 HP/s',fx:{regen:3}},          {label:'+15% damage · Ultimate (Q)',fx:{dmg:.15}}],
+  scout:    [{label:'+10% move speed',fx:{speed:.10}}, {label:'-15% ability cooldown',fx:{cd:.15}},   {label:'+12% move speed · Ultimate (Q)',fx:{speed:.12}}],
+  engineer: [{label:'+10% weapon damage',fx:{dmg:.10}},{label:'+15% max HP',fx:{hp:.15}},            {label:'-15% ability cooldown · Ultimate (Q)',fx:{cd:.15}}],
+  pyro:     [{label:'+12% weapon damage',fx:{dmg:.12}},{label:'+13% weapon damage',fx:{dmg:.13}},    {label:'10% passive armor · Ultimate (Q)',fx:{dr:.10}}],
+  berserker:[{label:'+15% weapon damage',fx:{dmg:.15}},{label:'+10% move speed',fx:{speed:.10}},     {label:'+15% damage · Ultimate (Q)',fx:{dmg:.15}}],
+  sniper:   [{label:'+20% weapon damage',fx:{dmg:.20}},{label:'+20% weapon damage',fx:{dmg:.20}},    {label:'-20% ability cooldown · Ultimate (Q)',fx:{cd:.20}}],
+  revenant: [{label:'+20% max HP',fx:{hp:.20}},        {label:'+15% weapon damage',fx:{dmg:.15}},     {label:'10% passive armor · Ultimate (Q)',fx:{dr:.10}}],
+};
+
 // WEAPONS
 const GUNS={
   rifle:  {name:'Assault Rifle', dmg:18, rpm:560, mag:30, reserve:120, reload:1700, spread:.05, speed:760, range:560, pellets:1, auto:true, col:'#ffd86b'},
@@ -648,8 +662,9 @@ function buildClassCards(){
       ${Object.entries(c.stats).map(([k,v])=>`<div class="stat"><span style="width:46px">${k}</span><span class="sb"><i style="width:${v/5*100}%"></i></span></div>`).join('')}
       ${locked?`<div class="lockmsg">${lockMsg}</div>`:''}
       ${locked&&c.buy?`<button class="buybtn${canBuy?'':' broke'}" data-buy="${key}">Buy — ${c.buy} ☣</button>`:''}
-      ${!locked?(()=>{ const al=abilityLevel(key), cost=20*(al+1), aff=getCores()>=cost;
-        return `<div class="abup"><span>Ability Lv ${al}/3</span><button class="abupbtn${aff||al>=3?'':' broke'}" data-abup="${key}">${al>=3?'MAX':('▲ '+cost+' ☣')}</button></div>`; })():''}`;
+      ${!locked?(()=>{ const al=abilityLevel(key), cost=20*(al+1), aff=getCores()>=cost, perks=ABIL_PERKS[key]||[];
+        const perkRows=perks.map((p,i)=>`<div class="perkrow" style="font-size:10px;line-height:1.35;${i<al?'color:#7fce4b':(i===al?'color:#ffe27a':'color:#6f7a64')}">${i<al?'✓':(i===al?'▸':'·')} Lv${i+1}: ${p.label}</div>`).join('');
+        return `<div class="perks" style="margin:6px 0 4px">${perkRows}</div><div class="abup"><span>Ability Lv ${al}/3</span><button class="abupbtn${aff||al>=3?'':' broke'}" data-abup="${key}">${al>=3?'MAX':('▲ '+cost+' ☣')}</button></div>`; })():''}`;
     d.onclick=()=>{ if(locked){ toast(c.buy?('Locked — '+lockMsg):'Locked — finish in the monthly Top 3'); return; }
       selectedClass=key; document.querySelectorAll('.ccard').forEach(x=>x.classList.remove('sel')); d.classList.add('sel'); };
     const bb=d.querySelector('.buybtn'); if(bb) bb.onclick=(e)=>{ e.stopPropagation(); buyClass(key); };
@@ -684,7 +699,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshC
 addEventListener('focus',()=>refreshCores());
 addEventListener('load',()=>refreshCores()); // re-sync the saved Bio-Cores total once everything's initialized (guards against a stale 0 at first paint)
 // build badge shows actual saved data, so stale-cache vs data issues are diagnosable at a glance
-function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 17 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
+function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 18 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
 updateVerBadge();
 // visible manual reset (no dev panel / URL needed) — clears Bio-Cores, unlocks, abilities, save
 $('menuResetBtn').onclick=()=>{ resetProgress(); buildClassCards(); refreshCores(); updateVerBadge(); { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } try{toast('Progress reset — clean slate');}catch(e){} };
@@ -731,8 +746,8 @@ function startGame(opts){
   me.x=CX+rand(-40,40); me.y=CY+150; me.alive=true; me.dead=false; me.downed=false; me.cash=hardMode?80:150; me.kills=0;
   me.stamina=me.maxStamina; me.stash=[]; buildMode=false; structures=[]; hazards=[]; isBloodMoon=false; drones=[]; turrets=[]; repairDrones=[];
   generator={x:CX,y:CY,hp:1500,maxhp:1500,r:30};
+  me.abLevel=abilityLevel(me.cls); // set before applySkills so ability-upgrade passives apply
   me.scrap=0; me.xp=0; me.level=1; me.xpNext=xpForLevel(1); me.skillPoints=0; me.skills={}; applySkills(); // fresh levels each run
-  me.abLevel=abilityLevel(me.cls);
   survivalT=0; lastDay=1; me.fireRingUntil=0; me.dmgBuffUntil=0; me.zoomUntil=0; me.ab2Ready=0; camZoom=1; camZoomTarget=1; clearSave();
   paused=false; openMenu=null; $('skills').style.display='none'; $('upgrade').style.display='none'; $('inv').style.display='none'; $('pause').style.display='none';
   $('buildbar').style.display='none'; $('buildHint').style.display='none'; $('bloodmoon').classList.remove('on');
@@ -1047,7 +1062,19 @@ function applySkills(){
   me.cdMul     = Math.max(0.4, 1 - 0.10*(s.tactician||0));
   me.gainMul   = 1 + 0.15*(s.scavenger||0);
   me.magnetR   = (s.magnet||0)>0 ? 110 + (s.magnet||0)*70 : 0;
-  const oldMax=me.maxhp, newMax=Math.round(c.hp*(1+0.15*(s.vitality||0)));
+  // ability-upgrade passives (cumulative, one per upgrade level)
+  me.regen=0; me.passiveDR=1; let hpMul=1;
+  const perks=ABIL_PERKS[me.cls]||[];
+  for(let i=0; i<(me.abLevel||0) && i<perks.length; i++){ const p=perks[i].fx;
+    if(p.dmg)    me.dmgMul   *= (1+p.dmg);
+    if(p.speed)  me.speedMul *= (1+p.speed);
+    if(p.reload) me.reloadMul/= (1+p.reload);
+    if(p.cd)     me.cdMul     = Math.max(0.3, me.cdMul*(1-p.cd));
+    if(p.regen)  me.regen    += p.regen;
+    if(p.dr)     me.passiveDR*= (1-p.dr);
+    if(p.hp)     hpMul       *= (1+p.hp);
+  }
+  const oldMax=me.maxhp, newMax=Math.round(c.hp*(1+0.15*(s.vitality||0))*hpMul);
   me.maxhp=newMax; if(newMax>oldMax) me.hp+=(newMax-oldMax); me.hp=clamp(me.hp,1,me.maxhp);
 }
 function gainXp(amt){
@@ -1469,6 +1496,7 @@ function damageMe(dmg){
   if(dev.god) return;
   const t=now();
   if(t<me.ironUntil) dmg*=0.1;
+  dmg*=(me.passiveDR||1); // ability-upgrade passive armor (Heavy/Pyro/Revenant)
   me.hp-=dmg; me.lastHurt=t;
   if(t-(me._hurtSfx||0)>180){ me._hurtSfx=t; SFX.hurt(); }
   if(me.hp<=0 && !me.downed && !me.dead){
@@ -1551,6 +1579,7 @@ function updateMe(dt){
     // ally revive proximity
     for(const b of bots){ if(b.alive&&dist(b.x,b.y,me.x,me.y)<40){ me.downed=false; me.hp=me.maxhp*0.4; toast('Revived by '+b.name); break; } }
     return; }
+  if(me.regen>0 && me.hp<me.maxhp) me.hp=Math.min(me.maxhp, me.hp+me.regen*dt); // ability-upgrade passive regen (Medic)
   let mx=0,my=0;
   if(keys['w']||keys['arrowup'])my-=1; if(keys['s']||keys['arrowdown'])my+=1;
   if(keys['a']||keys['arrowleft'])mx-=1; if(keys['d']||keys['arrowright'])mx+=1;
@@ -2101,7 +2130,8 @@ function classLevel(cls){ return loadClassProg(cls).level; }
 function buyAbilityUp(key){ const lvl=abilityLevel(key); if(lvl>=3){ toast('Ability maxed'); return; } const cost=20*(lvl+1);
   if(getCores()<cost){ toast('Need '+cost+' Bio-Cores'); return; }
   const m=loadMeta(); m.cores=(m.cores||0)-cost; m.abil=m.abil||{}; m.abil[key]=lvl+1; saveMeta(m);
-  SFX.levelUp(); toast(CLASSES[key].name+' ability → Lv '+(lvl+1)); buildClassCards(); }
+  const perk=(ABIL_PERKS[key]||[])[lvl]; SFX.levelUp();
+  toast(CLASSES[key].name+' Lv '+(lvl+1)+(perk?(' — '+perk.label):''), 2400); buildClassCards(); refreshCores(); }
 function buyClass(key){ const c=CLASSES[key]; if(!c||!c.buy||isUnlocked(key)) return;
   if(getCores()<c.buy){ toast('Need '+c.buy+' Bio-Cores'); return; }
   const m=loadMeta(); m.cores=(m.cores||0)-c.buy; m.unlocked=m.unlocked||[]; m.unlocked.push(key); saveMeta(m);
