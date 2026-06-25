@@ -37,6 +37,10 @@
   .bar > i{display:block; height:100%; transition:width .12s;}
   .bar .hp{background:linear-gradient(90deg,#d8453a,#e87b3c);}
   .bar .ab{background:linear-gradient(90deg,#3aa0d8,#6fd6ff);}
+  .bar .ult{background:linear-gradient(90deg,#b23df0,#ffcf3a);}
+  #ultBar{display:none; box-shadow:0 0 8px rgba(255,200,60,.25);}
+  #ultBar.ready{animation:ultpulse 1.1s ease-in-out infinite;}
+  @keyframes ultpulse{0%,100%{box-shadow:0 0 6px rgba(255,200,60,.3);}50%{box-shadow:0 0 16px rgba(255,200,60,.75);}}
   .bar .lab{position:absolute; inset:0; text-align:center; font-size:11px; line-height:16px; color:#fff; text-shadow:0 1px 2px #000; font-weight:bold;}
   #classline{font-weight:bold; letter-spacing:.5px; display:flex; align-items:center; gap:8px;}
   #classline .dot{width:12px;height:12px;border-radius:50%;display:inline-block;}
@@ -231,6 +235,7 @@
     <div id="classline"><span class="dot" id="hudDot"></span><span id="hudClass">SOLDIER</span><span id="hudLevel">Lv 1</span></div>
     <div class="bar"><i class="hp" id="hudHpFill" style="width:100%"></i><span class="lab" id="hudHpLab">100/100</span></div>
     <div class="bar"><i class="ab" id="hudAbFill" style="width:0%"></i><span class="lab" id="hudAbLab">ABILITY</span></div>
+    <div class="bar" id="ultBar"><i class="ult" id="hudUltFill" style="width:0%"></i><span class="lab" id="hudUltLab">★ ULTIMATE</span></div>
     <div class="bar thin"><i class="st" id="hudStFill" style="width:100%"></i></div>
     <div class="bar thin"><i class="xp" id="hudXpFill" style="width:0%"></i></div>
   </div>
@@ -283,7 +288,7 @@
 <div id="menu">
   <h1>APOCALYPSE&nbsp;SURVIVORS</h1>
   <div class="tag">CO-OP TOP-DOWN SURVIVAL · CHOOSE YOUR CLASS · OUTLAST THE HORDE</div>
-  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 18 · 2026-06-25</div>
+  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 19 · 2026-06-25</div>
   <div style="margin-top:6px"><button id="menuResetBtn" style="background:#2a1414;border:1px solid #5a2a2a;color:#e7a; border-radius:6px;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">↺ Reset progress (Bio-Cores, classes, abilities)</button></div>
 
   <div class="panel" id="classPanel">
@@ -699,7 +704,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshC
 addEventListener('focus',()=>refreshCores());
 addEventListener('load',()=>refreshCores()); // re-sync the saved Bio-Cores total once everything's initialized (guards against a stale 0 at first paint)
 // build badge shows actual saved data, so stale-cache vs data issues are diagnosable at a glance
-function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 18 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
+function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 19 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
 updateVerBadge();
 // visible manual reset (no dev panel / URL needed) — clears Bio-Cores, unlocks, abilities, save
 $('menuResetBtn').onclick=()=>{ resetProgress(); buildClassCards(); refreshCores(); updateVerBadge(); { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } try{toast('Progress reset — clean slate');}catch(e){} };
@@ -1012,17 +1017,42 @@ function useAbility(){
   }
   refreshHud();
 }
-// Ultimate — unlocked once a class's ability is fully upgraded (Lv 3). Key Q.
+// Ultimate — unlocked once a class's ability is fully upgraded (Lv 3). Key Q. Unique per class.
+const ULT_CD=35000;
+const ULT_NAMES={ soldier:'Air Strike', heavy:'Last Stand', medic:'Field Hospital', scout:'Phantom Blitz', engineer:'Drone Swarm', pyro:'Inferno', berserker:'Rampage', sniper:'Kill Order', revenant:'Death Nova' };
+function ultAoE(R,dm){ for(const z of zombies){ if(z.alive&&dist(z.x,z.y,me.x,me.y)<R){ if(isHost||soloMode()) damageZombie(z.id,dm,me.id); else if(net) net.send({t:'zhit',zid:z.id,dmg:dm}); } } }
+function ultBurst(col,n){ for(let i=0;i<(n||54);i++){ const a=Math.random()*TAU; particles.push({x:me.x,y:me.y,vx:Math.cos(a)*rand(220,560),vy:Math.sin(a)*rand(220,560),life:.9,col:Math.random()<.5?col:'#ffe27a',r:rand(3,8)}); } }
 function useAbility2(){
   if(!started||!me.alive||me.downed||me.dead) return;
-  if((me.abLevel||0)<3){ toast('Max your class ability (Bio-Cores, on the menu) to unlock the Ultimate'); return; }
-  const t=now(); if(t<(me.ab2Ready||0)){ toast('Ultimate: '+(((me.ab2Ready-t)/1000).toFixed(0))+'s'); return; }
-  me.ab2Ready=t+25000;
-  const R=320, dm=220*(1+0.25*me.abLevel);
-  for(const z of zombies){ if(z.alive&&dist(z.x,z.y,me.x,me.y)<R){ if(isHost||soloMode()) damageZombie(z.id,dm,me.id); else if(net) net.send({t:'zhit',zid:z.id,dmg:dm}); } }
-  me.hp=clamp(me.hp+me.maxhp*0.5,0,me.maxhp); me.ironUntil=t+2500; me.surgeUntil=t+5000; me.speedBoostUntil=t+5000;
-  for(let i=0;i<54;i++){ const a=Math.random()*TAU; particles.push({x:me.x,y:me.y,vx:Math.cos(a)*rand(200,520),vy:Math.sin(a)*rand(200,520),life:.85,col:Math.random()<.5?'#ffe27a':CLASSES[me.cls].color,r:rand(3,8)}); }
-  SFX.nova(); toast('★ ULTIMATE UNLEASHED!'); refreshHud();
+  if((me.abLevel||0)<3){ toast('Reach ability Lv 3 (Bio-Cores, on the menu) to unlock your Ultimate'); return; }
+  const t=now(); if(t<(me.ab2Ready||0)){ toast('Ultimate ready in '+(((me.ab2Ready-t)/1000).toFixed(0))+'s'); return; }
+  me.ab2Ready=t+ULT_CD; const col=CLASSES[me.cls].color;
+  switch(me.cls){
+    case 'soldier': // Air Strike — heavy AoE bombardment + rapid-fire surge
+      ultAoE(420,440); me.surgeUntil=t+7000; me.speedBoostUntil=t+7000; ultBurst('#ffd86b'); toast('★ AIR STRIKE — saturation fire!'); break;
+    case 'heavy': // Last Stand — near-invincible + heal + shockwave
+      me.ironUntil=t+9000; me.hp=clamp(me.hp+me.maxhp*0.6,0,me.maxhp); ultAoE(320,260); ultBurst('#d98a2b'); toast('★ LAST STAND — invincible for 9s!'); break;
+    case 'medic':{ // Field Hospital — full heal + heal/revive all teammates
+      me.hp=me.maxhp; healArea(me.x,me.y,420,9999);
+      for(const b of bots){ if(b.alive) b.hp=b.maxhp; }
+      let revived=0; for(const id in players){ const p=players[id]; if(p.downed){ p.downed=false; revived++; if(net) net.send({t:'revive',who:id}); } }
+      ultBurst('#6fd6ff'); toast('★ FIELD HOSPITAL — team healed'+(revived?' & '+revived+' revived!':'!')); break; }
+    case 'scout':{ // Phantom Blitz — long blink + AoE at landing + speed/invuln
+      const d=320; me.x=clamp(me.x+Math.cos(me.aim)*d,20,WORLD.w-20); me.y=clamp(me.y+Math.sin(me.aim)*d,20,WORLD.h-20);
+      ultAoE(260,300); me.ironUntil=t+3000; me.surgeUntil=t+7000; me.speedBoostUntil=t+7000; ultBurst('#c98ae6'); toast('★ PHANTOM BLITZ!'); break; }
+    case 'engineer':{ // Drone Swarm — deploy a squad of combat drones
+      for(let i=0;i<3;i++){ spawnDrone(me.id,col); if(net) net.send({t:'drone'}); } ultBurst(col,30); toast('★ DRONE SWARM — 3 drones online!'); break; }
+    case 'pyro': // Inferno — long fire ring + massive burn blast
+      me.fireRingUntil=t+25000; ultAoE(380,320); if(net) net.send({t:'firestorm'}); ultBurst('#ff7a30'); toast('★ INFERNO — everything burns!'); break;
+    case 'berserker': // Rampage — full heal + sustained surge + AoE
+      me.hp=me.maxhp; me.surgeUntil=t+9000; me.speedBoostUntil=t+9000; ultAoE(300,360); ultBurst('#c0432f'); toast('★ RAMPAGE!'); break;
+    case 'sniper': // Kill Order — execute every threat on screen + zoom
+      ultAoE(1300,700); me.zoomUntil=t+6000; me.dmgBuffUntil=t+6000; me.sniperBuff=3; ultBurst('#4f8de6'); toast('★ KILL ORDER — threats eliminated!'); break;
+    case 'revenant': // Death Nova — giant annihilating blast + heal
+      ultAoE(460,480); me.hp=clamp(me.hp+me.maxhp*0.5,0,me.maxhp); ultBurst('#ff5a4a',70); toast('★ DEATH NOVA!'); break;
+    default: ultAoE(360,360); me.hp=clamp(me.hp+me.maxhp*0.5,0,me.maxhp); ultBurst(col); toast('★ ULTIMATE!');
+  }
+  SFX.nova(); refreshHud();
 }
 const FIRE_R=150; // firestorm aura radius
 function updateFirestorm(dt){
@@ -1920,6 +1950,12 @@ function refreshHud(){
   const c=CLASSES[me.cls]; const cd=Math.max(0,me.abReady-now());
   const af=cd>0?1-cd/c.abCd:1; $('hudAbFill').style.width=(af*100)+'%';
   $('hudAbLab').textContent=cd>0?(c.abName+' '+(cd/1000).toFixed(1)+'s'):(c.abName+' READY');
+  // Ultimate bar — only shown once unlocked (ability Lv 3)
+  { const ub=$('ultBar'); if(ub){ if((me.abLevel||0)>=3){ ub.style.display='block';
+        const ucd=Math.max(0,(me.ab2Ready||0)-now()), nm='★ '+(ULT_NAMES[me.cls]||'ULTIMATE');
+        if(ucd>0){ $('hudUltFill').style.width=((1-ucd/ULT_CD)*100)+'%'; $('hudUltLab').textContent=nm+' '+(ucd/1000).toFixed(0)+'s'; ub.classList.remove('ready'); }
+        else { $('hudUltFill').style.width='100%'; $('hudUltLab').textContent=nm+' — Q'; ub.classList.add('ready'); }
+      } else ub.style.display='none'; } }
   const g=curGun(); if(g){
     if(g.spec.melee){ $('hudGun').textContent=g.spec.name+' (1)'; $('hudAmmo').innerHTML='<span class="res">∞ melee</span>'; $('hudAmmo').classList.remove('low'); }
     else { const reloading=me.reloading>0;
