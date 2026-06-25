@@ -390,6 +390,7 @@ const SFX=(()=>{
 addEventListener('pointerdown',()=>{ SFX.init(); SFX.resume(); });
 addEventListener('keydown',()=>{ SFX.init(); SFX.resume(); });
 const WORLD={w:2600,h:2600};
+const SCORES_URL='https://survive-the-horde-default-rtdb.firebaseio.com/scores'; // global leaderboard (declared early — used at load)
 const CX=WORLD.w/2, CY=WORLD.h/2;
 // central buildable compound (a concrete pad) — build only allowed inside
 const ZONE={x:CX-340, y:CY-340, w:680, h:680};
@@ -610,7 +611,7 @@ function buildClassCards(){
     const lockMsg = locked ? (c.buy ? (c.special?'Buy with credits, or finish monthly Top 3':'Buy with credits') : 'Finish monthly Top 3 to unlock') : '';
     const canBuy = locked && c.buy && getCredits()>=c.buy;
     const d=document.createElement('div'); d.className='ccard'+(key===selectedClass?' sel':'')+(locked?' locked':''); d.dataset.k=key;
-    d.innerHTML=`<div class="cname"><span class="ico" style="background:${c.color}22;border:1px solid ${c.color}">${c.icon}</span>${c.name}${locked?' <span class="lock">🔒</span>':`<span class="clvl">Lv ${classLevel(key)}</span>`}</div>
+    d.innerHTML=`<div class="cname"><span class="ico" style="background:${c.color}22;border:1px solid ${c.color}">${c.icon}</span>${c.name}${locked?' <span class="lock">🔒</span>':''}</div>
       <div class="crole">${c.role}</div>
       <div class="cdesc">${c.desc}</div>
       <div class="cab">★ ${c.abName} — ${c.abDesc}</div>
@@ -676,7 +677,7 @@ function startGame(opts){
   me.x=CX+rand(-40,40); me.y=CY+150; me.alive=true; me.dead=false; me.downed=false; me.cash=hardMode?80:150; me.kills=0;
   me.stamina=me.maxStamina; me.stash=[]; buildMode=false; structures=[]; hazards=[]; isBloodMoon=false; drones=[]; turrets=[]; repairDrones=[];
   generator={x:CX,y:CY,hp:1500,maxhp:1500,r:30};
-  me.scrap=0; const cp=loadClassProg(me.cls); me.level=cp.level; me.xp=cp.xp; me.xpNext=cp.xpNext; me.skillPoints=cp.sp; me.skills=Object.assign({},cp.skills); applySkills();
+  me.scrap=0; me.xp=0; me.level=1; me.xpNext=xpForLevel(1); me.skillPoints=0; me.skills={}; applySkills(); // fresh levels each run
   me.abLevel=abilityLevel(me.cls);
   survivalT=0; lastDay=1; me.fireRingUntil=0; me.dmgBuffUntil=0; me.zoomUntil=0; me.ab2Ready=0; camZoom=1; camZoomTarget=1; clearSave();
   paused=false; openMenu=null; $('skills').style.display='none'; $('upgrade').style.display='none'; $('inv').style.display='none'; $('pause').style.display='none';
@@ -731,7 +732,7 @@ function renderServerList(data){ const box=$('serverListBox'); const now=Date.no
   box.innerHTML=list.map(s=>`<div class="srow"><div><b>${esc(s.name||'Host')}</b> <span class="det">${s.hard?'☠ Hard · ':''}Day ${s.day||1} · Wave ${s.wave||0} · ${s.players||1}p${s.started?' · in progress':''}</span></div><button class="buy" data-code="${esc(s.code)}">Join</button></div>`).join('');
   box.querySelectorAll('[data-code]').forEach(b=>b.onclick=()=>{ $('serverList').style.display='none'; $('joinRow').style.display='flex'; $('joinCode').value=b.dataset.code; joinGame(b.dataset.code); }); }
 function hostGame(forcePublic){
-  isHost=true; const code=genCode();
+  isHost=true; me.name=($('nameInput').value||'Survivor').slice(0,12); const code=genCode();
   $('lobby').style.display='block'; $('roomcode').textContent=code;
   const link=location.origin+location.pathname+'?room='+code;
   $('invite').textContent=link;
@@ -742,7 +743,7 @@ function hostGame(forcePublic){
   startNet(true,code).then(()=>{ updateLobby(); if(pub){ lobbyRegister(code); $('lobbyHint').textContent='🌐 Listed on Public Servers — anyone can join. Or share the code/link.'; } }).catch(e=>menuErr(e.message));
 }
 function joinGame(code){
-  isHost=false; menuErr('Connecting…');
+  isHost=false; me.name=($('nameInput').value||'Survivor').slice(0,12); menuErr('Connecting…');
   startNet(false,code).then(()=>{ menuErr(''); $('lobby').style.display='block'; $('roomcode').textContent=code;
     $('startBtn').style.display='none'; $('lobbyHint').textContent='Connected! Waiting for host to start…'; $('copyInvite').style.display='none';
     updateLobby(); }).catch(e=>menuErr(e.message));
@@ -1854,12 +1855,13 @@ function toast(msg,dur){ const el=document.createElement('div'); el.className='t
 function banner(big,sub){ const b=$('banner'); b.style.display='block'; b.innerHTML=`<div class="big">${big}</div><div class="sub">${sub||''}</div>`; }
 function hideBanner(){ $('banner').style.display='none'; }
 function refreshBoard(){
-  const sb=$('scoreboard'); const rows=[{name:me.name+' (you)',cls:me.cls,kills:me.kills,hp:me.hp,mh:me.maxhp,al:me.alive&&!me.dead}];
-  for(const b of bots) rows.push({name:b.name,cls:b.cls,kills:b.kills,hp:b.hp,mh:b.maxhp,al:b.alive});
-  for(const id in players){ const p=players[id]; rows.push({name:p.name,cls:p.cls,kills:p.kills,hp:p.hp,mh:p.maxhp,al:p.alive}); }
+  const sb=$('scoreboard'); const rows=[{name:me.name+' (you)',cls:me.cls,kills:me.kills,al:me.alive&&!me.dead}];
+  for(const b of bots) rows.push({name:b.name,cls:b.cls,kills:b.kills,al:b.alive,bot:true});
+  for(const id in players){ const p=players[id]; rows.push({name:p.name,cls:p.cls,kills:p.kills,al:p.alive}); }
   rows.sort((a,b)=>b.kills-a.kills);
-  sb.innerHTML='<div style="color:var(--acc2);font-weight:bold;margin-bottom:4px">SQUAD · WAVE '+(wave||1)+'</div>'+
-    rows.map(r=>`<div class="row" style="${r.al?'':'opacity:.45'}"><span><span style="color:${(CLASSES[r.cls]||CLASSES.soldier).color}">●</span> ${esc(r.name)}</span><span>${r.kills}☣</span></div>`).join('');
+  const humans=1+Object.keys(players).length;
+  sb.innerHTML='<div style="color:var(--acc2);font-weight:bold;margin-bottom:4px">PLAYERS '+humans+(bots.length?(' · '+bots.length+' bots'):'')+' · WAVE '+(wave||1)+'</div>'+
+    rows.map(r=>`<div class="row" style="${r.al?'':'opacity:.45'}"><span><span style="color:${(CLASSES[r.cls]||CLASSES.soldier).color}">●</span> ${esc(r.name)} <span style="color:var(--mut);font-size:10px">${(CLASSES[r.cls]||{name:''}).name||''}${r.bot?' bot':''}</span></span><span>${r.kills}☣</span></div>`).join('');
 }
 
 // =====================================================================
@@ -1872,7 +1874,9 @@ function openPanel(id){ if(!started||gameOver||openMenu) return; openMenu=id; pa
   $(id).style.display='flex'; }
 function closePanel(){ if(!openMenu) return; $(openMenu).style.display='none'; openMenu=null; paused=false; }
 function togglePause(){ if(openMenu==='pause') closePanel(); else if(!openMenu) openPanel('pause'); }
-function quitToMenu(){ saveGame(); if(started&&!gameOver) saveClassProg(); lobbyRemove(); if(net&&net.peer){ try{ net.peer.destroy(); }catch(e){} } location.reload(); }
+function quitToMenu(){ saveGame();
+  if(started&&!gameOver){ saveClassProg(); const days=currentDay(); const e={name:me.name,cls:me.cls,wave,kills:me.kills,cash:me.cash,days,score:wave*1000+me.kills*50+me.cash+(days-1)*400,ts:Date.now()}; saveScore(e); postGlobalScore(e); }
+  lobbyRemove(); if(net&&net.peer){ try{ net.peer.destroy(); }catch(e){} } location.reload(); }
 
 // =====================================================================
 // DEVELOPER ADMIN PANEL (gated by a secret code; not exposed to players)
@@ -1916,11 +1920,11 @@ function renderAdmin(){
 function adminAct(a){ const m=loadMeta();
   switch(a){
     case 'close': dev.open=false; $('admin').style.display='none'; return;
-    case 'cash': me.cash+=1000; break;
-    case 'scrap': me.scrap+=500; break;
-    case 'credits': m.credits=(m.credits||0)+100; saveMeta(m); break;
-    case 'sp': me.skillPoints+=5; break;
-    case 'xp': gainXp(5000); break;
+    case 'cash': me.cash+=1000; toast('DEV: +$1000'); break;
+    case 'scrap': me.scrap+=500; toast('DEV: +500 scrap'); break;
+    case 'credits': m.credits=(m.credits||0)+100; saveMeta(m); toast('DEV: +100 credits ('+m.credits+' total)'); break;
+    case 'sp': me.skillPoints+=5; toast('DEV: +5 skill points'); break;
+    case 'xp': gainXp(5000); toast('DEV: +5000 XP'); break;
     case 'heal': me.hp=me.maxhp; me.downed=false; me.dead=false; me.alive=true; if(generator)generator.hp=generator.maxhp; break;
     case 'rweap': { const wt=WEAPON_DROPS[randi(0,WEAPON_DROPS.length-1)]; if(me.guns.length<GUN_CAP){ me.guns.push(mkGun(wt)); me.gunIdx=me.guns.length-1; } else { me.guns[1]=mkGun(wt); me.gunIdx=1; } toast('DEV: '+GUNS[wt].name); break; }
     case 'allweap': ['rifle','shotgun','smg','pistol','flamer','minigun'].forEach(wt=>{ if(!me.guns.find(g=>g.type===wt)&&me.guns.length<GUN_CAP) me.guns.push(mkGun(wt)); }); break;
@@ -1930,10 +1934,12 @@ function adminAct(a){ const m=loadMeta();
     case 'skipwave': spawnQueue=0; zombies.length=0; enemiesAlive=0; break;
     case 'unlockcls': m.unlocked=CLASS_KEYS.slice(); saveMeta(m); if($('menu').style.display!=='none') buildClassCards(); toast('All classes unlocked'); break;
     case 'maxabil': m.abil={}; CLASS_KEYS.forEach(k=>m.abil[k]=3); saveMeta(m); me.abLevel=3; if($('menu').style.display!=='none') buildClassCards(); toast('Ability levels maxed'); break;
-    case 'genheal': if(generator) generator.hp=generator.maxhp; break;
+    case 'genheal': if(generator) generator.hp=generator.maxhp; toast('Generator repaired'); break;
     case 'wipe': localStorage.removeItem('apocsurv_meta'); localStorage.removeItem('apocsurv_save'); localStorage.removeItem('apocsurv_scores'); toast('Cleared meta/save/scores'); break;
   }
-  refreshHud();
+  if($('creditBal')) $('creditBal').textContent='💳 '+getCredits()+' credits'; // live-update menu credit display
+  if($('menu')&&getComputedStyle($('menu')).display!=='none') buildClassCards();
+  refreshHud(); if(dev.open) renderAdmin();
 }
 function renderPanel(id){ if(id==='skills') renderSkills(); else if(id==='upgrade') renderUpgrade(); else if(id==='inv') renderInventory(); }
 const GUN_ICON=g=>({melee:'🔪',shotgun:'🔫',autoshotgun:'🔫',sawedoff:'🔫',flak:'🔫',pistol:'🔫',revolver:'🔫',dualpistols:'🔫',flamer:'🔥',railgun:'⚡',plasma:'⚡'}[g.type]||'🔫');
@@ -2072,14 +2078,23 @@ const LB_KEY='apocsurv_scores';
 function loadScores(){ try{ return JSON.parse(localStorage.getItem(LB_KEY))||[]; }catch(e){ return []; } }
 function saveScore(entry){ const s=loadScores(); s.push(entry); s.sort((a,b)=>b.score-a.score); const top=s.slice(0,10);
   try{ localStorage.setItem(LB_KEY,JSON.stringify(top)); }catch(e){} return top; }
-function renderLeaderboard(hi){
-  const el=$('lbList'); if(!el) return; const s=loadScores();
-  if(!s.length){ el.innerHTML='<div class="empty">No runs yet — survive to set a record.</div>'; return; }
-  el.innerHTML=s.map((e,i)=>`<div class="lrow"${e.score===hi?' style="background:rgba(127,206,75,.12)"':''}>
+function postGlobalScore(entry){ if(!entry||(entry.wave||0)<2) return; // skip trivial runs
+  try{ fetch(SCORES_URL+'.json',{method:'POST',body:JSON.stringify(entry)}).catch(()=>{}); }catch(e){} }
+function lbRowHTML(e,i,hi){ return `<div class="lrow"${e.score===hi?' style="background:rgba(127,206,75,.12)"':''}>
     <span class="rank">#${i+1}</span>
-    <span class="who">${esc(e.name)} <span class="det">${(CLASSES[e.cls]||{name:''}).name||''}</span></span>
-    <span><span class="det">Day ${e.days||1} · W${e.wave} · ${e.kills}☣</span> &nbsp;<span class="sc">${e.score.toLocaleString()}</span></span>
-  </div>`).join('');
+    <span class="who">${esc(e.name||'?')} <span class="det">${(CLASSES[e.cls]||{name:''}).name||''}</span></span>
+    <span><span class="det">Day ${e.days||1} · W${e.wave||0} · ${e.kills||0}☣</span> &nbsp;<span class="sc">${(e.score||0).toLocaleString()}</span></span>
+  </div>`; }
+function renderLocalLB(hi){ const el=$('lbList'); if(!el) return; const s=loadScores();
+  if(!s.length){ el.innerHTML='<div class="empty">No runs yet — survive to set a record.</div>'; return; }
+  el.innerHTML='<div style="font-size:11px;color:var(--mut);margin-bottom:5px">📁 Local scores (offline)</div>'+s.map((e,i)=>lbRowHTML(e,i,hi)).join(''); }
+function renderLeaderboard(hi){ const el=$('lbList'); if(!el) return;
+  el.innerHTML='<div class="empty">Loading global leaderboard…</div>';
+  fetch(SCORES_URL+'.json').then(r=>r.json()).then(data=>{
+    const list=Object.values(data||{}).filter(e=>e&&typeof e.score==='number').sort((a,b)=>b.score-a.score).slice(0,12);
+    if(!list.length){ renderLocalLB(hi); return; }
+    el.innerHTML='<div style="font-size:11px;color:var(--acc2);margin-bottom:5px">🌐 Global top scores</div>'+list.map((e,i)=>lbRowHTML(e,i,hi)).join('');
+  }).catch(()=>renderLocalLB(hi));
 }
 function doGameOver(victory){
   if(gameOver) return; gameOver=true;
@@ -2087,7 +2102,8 @@ function doGameOver(victory){
   SFX.gameOver(); saveClassProg(); clearSave(); // the run is over (class level persists)
   const days=currentDay();
   const score=wave*1000+me.kills*50+me.cash+(days-1)*400;
-  const top=saveScore({name:me.name,cls:me.cls,wave,kills:me.kills,cash:me.cash,days,score});
+  const entry={name:me.name,cls:me.cls,wave,kills:me.kills,cash:me.cash,days,score,ts:Date.now()};
+  const top=saveScore(entry); postGlobalScore(entry); // local + global leaderboard
   const rank=top.findIndex(e=>e.score===score)+1;
   // earn persistent credits for buying classes
   const earned=Math.floor(score/200); { const m=loadMeta(); m.credits=(m.credits||0)+earned; saveMeta(m); }
