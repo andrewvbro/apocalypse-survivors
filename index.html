@@ -288,7 +288,7 @@
 <div id="menu">
   <h1>APOCALYPSE&nbsp;SURVIVORS</h1>
   <div class="tag">CO-OP TOP-DOWN SURVIVAL · CHOOSE YOUR CLASS · OUTLAST THE HORDE</div>
-  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 19 · 2026-06-25</div>
+  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 20 · 2026-06-25</div>
   <div style="margin-top:6px"><button id="menuResetBtn" style="background:#2a1414;border:1px solid #5a2a2a;color:#e7a; border-radius:6px;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">↺ Reset progress (Bio-Cores, classes, abilities)</button></div>
 
   <div class="panel" id="classPanel">
@@ -704,7 +704,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshC
 addEventListener('focus',()=>refreshCores());
 addEventListener('load',()=>refreshCores()); // re-sync the saved Bio-Cores total once everything's initialized (guards against a stale 0 at first paint)
 // build badge shows actual saved data, so stale-cache vs data issues are diagnosable at a glance
-function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 19 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
+function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 20 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
 updateVerBadge();
 // visible manual reset (no dev panel / URL needed) — clears Bio-Cores, unlocks, abilities, save
 $('menuResetBtn').onclick=()=>{ resetProgress(); buildClassCards(); refreshCores(); updateVerBadge(); { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } try{toast('Progress reset — clean slate');}catch(e){} };
@@ -1298,7 +1298,7 @@ function pickType(){
 function spawnOne(){ const m=spawnPos(randi(0,3)); zombies.push(mkZombie(pickType(),m.x,m.y)); }
 function allTargets(){
   const list=[{x:me.x,y:me.y,obj:me,kind:'me',alive:me.alive&&!me.downed&&!me.dead}];
-  for(const b of bots) if(b.alive) list.push({x:b.x,y:b.y,obj:b,kind:'bot',alive:true});
+  for(const b of bots) if(b.alive&&!b.downed) list.push({x:b.x,y:b.y,obj:b,kind:'bot',alive:true});
   for(const id in players){ const p=players[id]; if(p.alive&&!p.downed) list.push({x:p.x,y:p.y,obj:p,kind:'net',alive:true}); }
   if(generator&&generator.hp>0) list.push({x:generator.x,y:generator.y,obj:generator,kind:'gen',alive:true});
   return list.filter(t=>t.alive);
@@ -1346,7 +1346,7 @@ function updateZombies(dt){
 }
 function hurtTarget(tg,dmg){
   if(tg.kind==='me'){ damageMe(dmg); }
-  else if(tg.kind==='bot'){ tg.obj.hp-=dmg; if(tg.obj.hp<=0){ tg.obj.alive=false; spawnDeathFx(tg.obj.x,tg.obj.y,tg.obj.color); toast(tg.obj.name+' fell'); } }
+  else if(tg.kind==='bot'){ tg.obj.hp-=dmg; if(tg.obj.hp<=0) botDown(tg.obj); }
   else if(tg.kind==='gen'){ if(dev.godGen) return; generator.hp-=dmg; spawnHitFx(generator.x+rand(-20,20),generator.y+rand(-20,20),'#ffd86b'); if(generator.hp<=0){ generator.hp=0; generatorDestroyed(); } }
   // net players manage their own hp; host just informs via reduced authority (kept simple)
 }
@@ -1359,7 +1359,7 @@ function damageZombie(zid,dmg,by){
 }
 function explodeDamage(x,y,r,dmg){
   if(me.alive&&!me.downed&&dist(me.x,me.y,x,y)<r) damageMe(dmg);
-  for(const b of bots){ if(b.alive&&dist(b.x,b.y,x,y)<r){ b.hp-=dmg; if(b.hp<=0){ b.alive=false; spawnDeathFx(b.x,b.y,b.color); } } }
+  for(const b of bots){ if(b.alive&&!b.downed&&dist(b.x,b.y,x,y)<r){ b.hp-=dmg; if(b.hp<=0) botDown(b); } }
   for(const s of structures){ if(s.hp>0&&dist(s.x,s.y,x,y)<r) damageStructure(s,dmg); }
 }
 function killZombie(z,by){
@@ -1390,10 +1390,13 @@ function killZombie(z,by){
 // =====================================================================
 // BOT ALLIES
 // =====================================================================
+function botDown(b){ if(!b||!b.alive||b.downed) return; b.hp=0; b.downed=true; b.downT=now()+15000; b.lastShot=0; spawnHitFx(b.x,b.y,'#7a2a2a'); toast(b.name+' is down — revive them!'); }
+function botDie(b){ b.alive=false; b.downed=false; spawnDeathFx(b.x,b.y,b.color); toast(b.name+' fell'); }
 function updateBots(dt){
   if(!isHost && !soloMode()) return;
   const t=now();
   for(const b of bots){ if(!b.alive) continue;
+    if(b.downed){ if(t>b.downT) botDie(b); continue; } // downed: bleed out unless revived
     // find nearest zombie
     let tz=null,bd=1e9; for(const z of zombies){ if(!z.alive)continue; const d=dist(b.x,b.y,z.x,z.y); if(d<bd){bd=d;tz=z;} }
     if(tz){ b.aim=Math.atan2(tz.y-b.y,tz.x-b.x);
@@ -1533,7 +1536,7 @@ function damageMe(dmg){
     me.hp=0; SFX.down();
     // only go "downed" (revivable) if someone can actually revive you — a living bot or human teammate.
     // (the generator is a target too, but it can't revive, so it must NOT count here.)
-    const canRevive = bots.some(b=>b.alive) || Object.values(players).some(p=>p.alive&&!p.downed&&!p.dead);
+    const canRevive = bots.some(b=>b.alive&&!b.downed) || Object.values(players).some(p=>p.alive&&!p.downed&&!p.dead);
     if(canRevive){ me.downed=true; me.downT=t+12000; if(net) net.send({t:'down'}); toast('You are down — a teammate can revive you!'); }
     else { dieFinal(); }
   }
@@ -1590,7 +1593,7 @@ function updateHazards(dt){ const t=now();
   for(const h of hazards){ if(t>h.until) continue;
     if(Math.random()<0.4) particles.push({x:h.x+rand(-h.r,h.r),y:h.y+rand(-h.r,h.r),vx:0,vy:-20,life:.6,col:h.fire?(Math.random()<.5?'#ff7a30':'#ffd86b'):'#7fce4b',r:rand(3,6)});
     if(me.alive&&!me.downed&&dist(me.x,me.y,h.x,h.y)<h.r) damageMe(h.dmg*dt);
-    for(const b of bots){ if(b.alive&&dist(b.x,b.y,h.x,h.y)<h.r) b.hp-=h.dmg*dt; }
+    for(const b of bots){ if(b.alive&&!b.downed&&dist(b.x,b.y,h.x,h.y)<h.r){ b.hp-=h.dmg*dt; if(b.hp<=0) botDown(b); } }
   }
   hazards=hazards.filter(h=>t<h.until);
 }
@@ -1606,8 +1609,8 @@ function updateMe(dt){
   else { me.aim=Math.atan2(mouse.wy-me.y,mouse.wx-me.x); }
   // downed: can't move, bleed out
   if(me.downed){ me.hp=Math.max(0,me.hp); if(t>me.downT){ dieFinal(); }
-    // ally revive proximity
-    for(const b of bots){ if(b.alive&&dist(b.x,b.y,me.x,me.y)<40){ me.downed=false; me.hp=me.maxhp*0.4; toast('Revived by '+b.name); break; } }
+    // ally revive proximity (a healthy bot can pick you up)
+    for(const b of bots){ if(b.alive&&!b.downed&&dist(b.x,b.y,me.x,me.y)<40){ me.downed=false; me.hp=me.maxhp*0.4; toast('Revived by '+b.name); break; } }
     return; }
   if(me.regen>0 && me.hp<me.maxhp) me.hp=Math.min(me.maxhp, me.hp+me.regen*dt); // ability-upgrade passive regen (Medic)
   let mx=0,my=0;
@@ -1622,12 +1625,14 @@ function updateMe(dt){
   else me.stamina=clamp(me.stamina+22*dt,0,me.maxStamina);
   me.x=clamp(me.x+mx*sp*dt,16,WORLD.w-16); me.y=clamp(me.y+my*sp*dt,16,WORLD.h-16);
   resolveCollision(me,14);
-  // revive a downed teammate by standing next to them (hold ~2.2s)
-  me.revivingId=null;
+  // revive a downed teammate — player OR bot — by standing next to them (hold ~2.2s)
+  me.revivingId=null; me.reviveTarget=null;
   let downedMate=null;
   for(const id in players){ const p=players[id]; if(p.alive && p.downed && dist(me.x,me.y,p.x,p.y)<52){ downedMate=p; break; } }
-  if(downedMate){ me.revivingId=downedMate.id; me.reviveT=(me.reviveT||0)+dt;
-    if(me.reviveT>=2.2){ me.reviveT=0; downedMate.downed=false; if(net) net.send({t:'revive',who:downedMate.id}); toast('Revived '+esc(downedMate.name)); }
+  if(!downedMate){ for(const b of bots){ if(b.alive && b.downed && dist(me.x,me.y,b.x,b.y)<52){ downedMate=b; break; } } }
+  if(downedMate){ me.reviveTarget=downedMate; me.revivingId=downedMate.id; me.reviveT=(me.reviveT||0)+dt;
+    if(me.reviveT>=2.2){ me.reviveT=0; downedMate.downed=false; downedMate.hp=downedMate.maxhp*0.5;
+      if(!downedMate.isBot && net) net.send({t:'revive',who:downedMate.id}); toast('Revived '+esc(downedMate.name)); }
   } else me.reviveT=0;
   // firing (disabled in build mode or while reviving)
   if(!buildMode && !me.revivingId && (mouse.down||(touchAim.active&&Math.hypot(touchAim.dx,touchAim.dy)>0.5))){
@@ -1704,14 +1709,14 @@ function draw(){
   // zombies
   for(const z of zombies){ if(z.alive) drawZombie(z); }
   // bots & remote players
-  for(const b of bots) if(b.alive) drawHumanoid(b.x,b.y,b.aim,b.color,b.name,b.hp/b.maxhp,false,false, b.gun&&b.gun.type);
+  for(const b of bots) if(b.alive) drawHumanoid(b.x,b.y,b.aim,b.color,b.name,b.hp/b.maxhp,b.downed,false, b.gun&&b.gun.type);
   for(const id in players){ const p=players[id]; if(p.alive){ drawHumanoid(p.x+(p.tx-p.x)*0,p.y,p.aim,p.color,p.name,p.hp/p.maxhp,p.downed,false, p.gunType||(CLASSES[p.cls]||{}).gun); } }
   // remote interp
   for(const id in players){ const p=players[id]; p.x=lerp(p.x,p.tx,0.25); p.y=lerp(p.y,p.ty,0.25); }
   // me
   if(me.alive) drawHumanoid(me.x,me.y,me.aim,CLASSES[me.cls].color,'',1,me.downed,true, curGun()&&curGun().type);
   // revive progress ring on the teammate being revived
-  if(me.revivingId && players[me.revivingId]){ const p=players[me.revivingId], prog=clamp((me.reviveT||0)/2.2,0,1);
+  if(me.reviveTarget){ const p=me.reviveTarget, prog=clamp((me.reviveT||0)/2.2,0,1);
     ctx.strokeStyle='rgba(0,0,0,.5)'; ctx.lineWidth=5; ctx.beginPath(); ctx.arc(p.x,p.y,28,0,TAU); ctx.stroke();
     ctx.strokeStyle='#6fd6ff'; ctx.lineWidth=5; ctx.beginPath(); ctx.arc(p.x,p.y,28,-Math.PI/2,-Math.PI/2+prog*TAU); ctx.stroke();
     ctx.fillStyle='#6fd6ff'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.fillText('REVIVING',p.x,p.y-34); }
