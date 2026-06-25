@@ -854,6 +854,7 @@ function handleNet(msg){
     case 'wave': wave=msg.wave; enemiesAlive=msg.alive; isBloodMoon=!!msg.bm; $('bloodmoon').classList.toggle('on',isBloodMoon);
       if(msg.boss) SFX.boss(); else if(isBloodMoon) SFX.bloodMoon(); else SFX.wave();
       banner(msg.boss?'👹 BOSS FIGHT':(isBloodMoon?'🌑 BLOOD MOON':'WAVE '+msg.wave), msg.boss?('Wave '+msg.wave+' — slay the Behemoth'):(isBloodMoon?('Wave '+msg.wave+' — the horde swells'):(msg.alive+' incoming'))); setTimeout(hideBanner,2200); refreshHud(); break;
+    case 'wavecleared': { const mm=loadMeta(); mm.cores=(mm.cores||0)+(msg.cr||0); saveMeta(mm); toast('Wave cleared! +'+(msg.cr||0)+' ☣ Bio-Cores',1600); refreshHud(); break; }
     case 'build': placeStructure(msg.k,msg.x,msg.y,id); break;
     case 'unbuild': structures=structures.filter(s=>s.id!==msg.id); break;
     case 'kill': if(msg.who===me.id){ me.kills++; me.cash+=(msg.cash||0); if(msg.scrap)me.scrap+=msg.scrap; if(msg.xp)gainXp(msg.xp); refreshHud(); } else { const p=players[msg.who]; if(p) p.kills++; } break;
@@ -1576,6 +1577,7 @@ function updateWaves(dt){
     const waveXp=Math.round((50+wave*20)*(isBloodMoon?2:1)); gainXp(waveXp);
     const cr=Math.max(1,Math.round(wave*1.5)*(isBloodMoon?2:1)); // bank Bio-Cores every wave (persists immediately)
     { const mm=loadMeta(); mm.cores=(mm.cores||0)+cr; saveMeta(mm); }
+    if(net) net.broadcast({t:'wavecleared',cr}); // co-op: clients bank their own per-wave Bio-Cores too (they don't run the wave loop)
     isBloodMoon=false; $('bloodmoon').classList.remove('on');
     toast('Wave '+wave+' cleared! +$'+reward+' · +'+waveXp+' XP · +'+cr+' ☣ Bio-Cores',1800);
     scheduleNextWave(7000); saveGame(); saveClassProg(); banner('WAVE CLEARED','Build up — next wave in 7s'); setTimeout(hideBanner,1900); refreshHud(); }
@@ -2051,7 +2053,8 @@ function selGunUpgrade(i){ if(i>=0&&i<me.guns.length){ me.gunIdx=i; me.reloading
 // ---- monthly champions / special-class unlock ----
 const META_KEY='apocsurv_meta';
 function loadMeta(){ try{ const s=localStorage.getItem(META_KEY); if(s) return JSON.parse(s); }catch(e){} return _metaMem?JSON.parse(JSON.stringify(_metaMem)):{}; }
-function saveMeta(m){ _metaMem=JSON.parse(JSON.stringify(m)); // always keep it for this session
+function saveMeta(m){ if(m&&'credits'in m) delete m.credits; // scrub the dead legacy 'credits' field (currency is 'cores' now)
+  _metaMem=JSON.parse(JSON.stringify(m)); // always keep it for this session
   try{ localStorage.setItem(META_KEY,JSON.stringify(m)); }
   catch(e){ if(!_storageWarned){ _storageWarned=true; try{toast('⚠ Storage blocked — progress works this session but won\'t save after closing');}catch(_){} } } }
 
@@ -2072,6 +2075,7 @@ function unlockClass(key){ const m=loadMeta(); m.unlocked=m.unlocked||[]; if(!m.
 function getCores(){ return loadMeta().cores||0; }
 function refreshCores(){ // instantly reflect the current (local) Bio-Cores total everywhere it's shown
   try{ const cb=$('coreBal'); if(cb) cb.textContent='☣ '+getCores()+' Bio-Cores'; }catch(e){}
+  try{ const hc=$('hudCores'); if(hc) hc.textContent=getCores(); }catch(e){} // in-game HUD counter
   try{ if($('menu')&&getComputedStyle($('menu')).display!=='none') buildClassCards(); }catch(e){} // rebuilds cards + their Bio-Cores-gated buy/upgrade buttons
   try{ if(dev.open) renderAdmin(); }catch(e){} // dev panel live Bio-Cores line
 }
