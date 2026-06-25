@@ -1,7 +1,7 @@
 // Apocalypse Survivors — service worker
 // network-first (always load latest online; cache = offline fallback)
 // + force-reloads open tabs when a new version activates, so stale caches can't trap users.
-const CACHE = 'apoc-v11';
+const CACHE = 'apoc-v12';
 const ASSETS = ['./', './index.html', './vendor/peerjs.min.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', e => {

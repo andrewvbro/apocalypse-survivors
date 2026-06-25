@@ -1946,7 +1946,7 @@ function renderAdmin(){
   $('admin').innerHTML=`<div class="ahead">🛠 DEV PANEL<span data-act="close" class="aclose">✕</span></div>
     <div style="font-size:11px;color:#9fb0c0;margin-bottom:6px;line-height:1.5">💳 ${getCredits()} credits · 💵 $${me.cash||0} · ⚙ ${me.scrap||0} scrap<br><span style="color:#7f8a72">credits are spent on the class-select screen</span></div>
     <div class="agrp">Cheats</div>${tog('God mode','god')}${tog('Infinite ammo','infAmmo')}${tog('One-shot kills','oneShot')}${tog('Invincible generator','godGen')}
-    <div class="agrp">Give</div>${act('+$1000','cash')}${act('+500 scrap','scrap')}${act('+100 credits','credits')}${act('+5 skill pts','sp')}${act('+5000 XP','xp')}${act('Full heal','heal')}
+    <div class="agrp">Give</div>${act('+$1000','cash')}${act('+500 scrap','scrap')}${act('+5 skill pts','sp')}${act('+5000 XP','xp')}${act('Full heal','heal')}
     <div class="agrp">Weapons</div>${act('Random weapon','rweap')}${act('All weapons','allweap')}
     <div class="agrp">Waves & spawns</div>${act('Clear zombies','clear')}${act('Spawn 10','spawn10')}${act('Spawn boss','boss')}${act('Skip wave','skipwave')}
     <div class="agrp">Unlocks</div>${act('Unlock all classes','unlockcls')}${act('Max ability lvls','maxabil')}${act('Heal generator','genheal')}${act('↺ Reset progress','resetprog')}${act('Reset dev/save','wipe')}
@@ -1959,7 +1959,6 @@ function adminAct(a){ const m=loadMeta();
     case 'close': dev.open=false; $('admin').style.display='none'; return;
     case 'cash': me.cash+=1000; toast('DEV: +$1000'); break;
     case 'scrap': me.scrap+=500; toast('DEV: +500 scrap'); break;
-    case 'credits': m.credits=(m.credits||0)+100; saveMeta(m); toast('DEV: +100 credits ('+m.credits+' total)'); break;
     case 'sp': me.skillPoints+=5; toast('DEV: +5 skill points'); break;
     case 'xp': gainXp(5000); toast('DEV: +5000 XP'); break;
     case 'heal': me.hp=me.maxhp; me.downed=false; me.dead=false; me.alive=true; if(generator)generator.hp=generator.maxhp; break;
