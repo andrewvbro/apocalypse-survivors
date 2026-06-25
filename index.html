@@ -325,7 +325,7 @@
   </div>
 
   <div class="panel" id="lbPanel">
-    <h2>🏆 Local high scores</h2>
+    <h2>🏆 Global High Scores <span id="lbRefresh" style="float:right;font-size:12px;color:#6fd6ff;cursor:pointer">↻ Refresh</span></h2>
     <div class="champline" id="champLine"></div>
     <div class="lb" id="lbList"></div>
   </div>
@@ -659,6 +659,7 @@ $('hostPublicBtn').onclick=()=>hostGame(true);
 $('browseBtn').onclick=()=>openServerList();
 $('srClose').onclick=()=>$('serverList').style.display='none';
 $('srRefresh').onclick=()=>openServerList();
+$('lbRefresh').onclick=()=>renderLeaderboard();
 $('joinBtn').onclick=()=>{ const code=$('joinCode').value.trim().toUpperCase(); if(code.length<3){menuErr('Enter the 4-letter room code.');return;} joinGame(code); };
 function menuErr(m){ $('menuErr').textContent=m||''; }
 
