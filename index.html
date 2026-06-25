@@ -288,7 +288,7 @@
 <div id="menu">
   <h1>APOCALYPSE&nbsp;SURVIVORS</h1>
   <div class="tag">CO-OP TOP-DOWN SURVIVAL · CHOOSE YOUR CLASS · OUTLAST THE HORDE</div>
-  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 20 · 2026-06-25</div>
+  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 21 · 2026-06-25</div>
   <div style="margin-top:6px"><button id="menuResetBtn" style="background:#2a1414;border:1px solid #5a2a2a;color:#e7a; border-radius:6px;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">↺ Reset progress (Bio-Cores, classes, abilities)</button></div>
 
   <div class="panel" id="classPanel">
@@ -512,12 +512,12 @@ const CLASSES={
     desc:'Earned only by finishing in the monthly Top 3. Soaks huge damage and unleashes a Death Nova that annihilates everything around it.',
     abName:'Death Nova', abDesc:'Massive AoE blast', abCd:11000, abDur:0,
     stats:{Power:5,Speed:3,Health:5} },
-  berserker:{ name:'Berserker', role:'★ Buyable · bruiser', color:'#c0432f', icon:'🪓', buy:25, gun:'shotgun',
+  berserker:{ name:'Berserker', role:'★ Buyable · bruiser', color:'#c0432f', icon:'🪓', buy:150, gun:'shotgun',
     hp:175, speed:188,
     desc:'Buy with Bio-Cores earned across runs. Tanky and fast, with a Bloodlust surge that heals you and supercharges your attacks.',
     abName:'Bloodlust', abDesc:'Heal + speed + fire-rate', abCd:11000, abDur:5000,
     stats:{Power:4,Speed:5,Health:4} },
-  sniper:{ name:'Sniper', role:'★ Buyable · marksman', color:'#4f8de6', icon:'🎯', buy:30, gun:'rifle',
+  sniper:{ name:'Sniper', role:'★ Buyable · marksman', color:'#4f8de6', icon:'🎯', buy:250, gun:'rifle',
     hp:95, speed:160,
     desc:'Buy with Bio-Cores. Fragile but lethal — Overwatch zooms the camera out and triples your damage so you can pick off major threats across the map.',
     abName:'Overwatch', abDesc:'Zoom out + ×3 damage', abCd:14000, abDur:7000,
@@ -704,7 +704,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshC
 addEventListener('focus',()=>refreshCores());
 addEventListener('load',()=>refreshCores()); // re-sync the saved Bio-Cores total once everything's initialized (guards against a stale 0 at first paint)
 // build badge shows actual saved data, so stale-cache vs data issues are diagnosable at a glance
-function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 20 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
+function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 21 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
 updateVerBadge();
 // visible manual reset (no dev panel / URL needed) — clears Bio-Cores, unlocks, abilities, save
 $('menuResetBtn').onclick=()=>{ resetProgress(); buildClassCards(); refreshCores(); updateVerBadge(); { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } try{toast('Progress reset — clean slate');}catch(e){} };
@@ -2040,7 +2040,7 @@ function renderAdmin(){
   $('admin').innerHTML=`<div class="ahead">🛠 DEV PANEL<span data-act="close" class="aclose">✕</span></div>
     <div style="font-size:11px;color:#9fb0c0;margin-bottom:6px;line-height:1.5">☣ ${getCores()} Bio-Cores · 💵 $${me.cash||0} · ⚙ ${me.scrap||0} scrap<br><span style="color:#7f8a72">Bio-Cores are spent on the class-select screen</span></div>
     <div class="agrp">Cheats</div>${tog('God mode','god')}${tog('Infinite ammo','infAmmo')}${tog('One-shot kills','oneShot')}${tog('Invincible generator','godGen')}
-    <div class="agrp">Give</div>${act('+$1000','cash')}${act('+500 scrap','scrap')}${act('+5 skill pts','sp')}${act('+5000 XP','xp')}${act('Full heal','heal')}
+    <div class="agrp">Give</div>${act('+$1000','cash')}${act('+500 scrap','scrap')}${act('+100 ☣ Bio-Cores','cores')}${act('+5 skill pts','sp')}${act('+5000 XP','xp')}${act('Full heal','heal')}
     <div class="agrp">Weapons</div>${act('Random weapon','rweap')}${act('All weapons','allweap')}
     <div class="agrp">Waves & spawns</div>${act('Clear zombies','clear')}${act('Spawn 10','spawn10')}${act('Spawn boss','boss')}${act('Skip wave','skipwave')}
     <div class="agrp">Unlocks</div>${act('Heal generator','genheal')}${act('↺ Reset progress','resetprog')}${act('Reset dev/save','wipe')}
@@ -2053,6 +2053,7 @@ function adminAct(a){ const m=loadMeta();
     case 'close': dev.open=false; $('admin').style.display='none'; return;
     case 'cash': me.cash+=1000; toast('DEV: +$1000'); break;
     case 'scrap': me.scrap+=500; toast('DEV: +500 scrap'); break;
+    case 'cores': { const mm=loadMeta(); mm.cores=(mm.cores||0)+100; saveMeta(mm); toast('DEV: +100 ☣ Bio-Cores ('+mm.cores+' total)'); break; }
     case 'sp': me.skillPoints+=5; toast('DEV: +5 skill points'); break;
     case 'xp': gainXp(5000); toast('DEV: +5000 XP'); break;
     case 'heal': me.hp=me.maxhp; me.downed=false; me.dead=false; me.alive=true; if(generator)generator.hp=generator.maxhp; break;
