@@ -1941,7 +1941,7 @@ function renderAdmin(){
     <div class="agrp">Give</div>${act('+$1000','cash')}${act('+500 scrap','scrap')}${act('+100 credits','credits')}${act('+5 skill pts','sp')}${act('+5000 XP','xp')}${act('Full heal','heal')}
     <div class="agrp">Weapons</div>${act('Random weapon','rweap')}${act('All weapons','allweap')}
     <div class="agrp">Waves & spawns</div>${act('Clear zombies','clear')}${act('Spawn 10','spawn10')}${act('Spawn boss','boss')}${act('Skip wave','skipwave')}
-    <div class="agrp">Unlocks</div>${act('Unlock all classes','unlockcls')}${act('Max ability lvls','maxabil')}${act('Heal generator','genheal')}${act('Reset dev/save','wipe')}
+    <div class="agrp">Unlocks</div>${act('Unlock all classes','unlockcls')}${act('Max ability lvls','maxabil')}${act('Heal generator','genheal')}${act('↺ Reset progress','resetprog')}${act('Reset dev/save','wipe')}
     <div class="ahint">toggle with <b>\`</b> (backtick)</div>`;
   $('admin').querySelectorAll('[data-tog]').forEach(b=>b.onclick=()=>{ dev[b.dataset.tog]=!dev[b.dataset.tog]; renderAdmin(); });
   $('admin').querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>adminAct(b.dataset.act));
@@ -1965,6 +1965,11 @@ function adminAct(a){ const m=loadMeta();
     case 'maxabil': m.abil={}; CLASS_KEYS.forEach(k=>m.abil[k]=3); saveMeta(m); me.abLevel=3; if($('menu').style.display!=='none') buildClassCards(); toast('Ability levels maxed'); break;
     case 'genheal': if(generator) generator.hp=generator.maxhp; toast('Generator repaired'); break;
     case 'wipe': localStorage.removeItem('apocsurv_meta'); localStorage.removeItem('apocsurv_save'); localStorage.removeItem('apocsurv_scores'); toast('Cleared meta/save/scores'); break;
+    case 'resetprog': { // clean slate: clear credits/unlocks/abilities everywhere (local + cloud), keep dev access & leaderboard
+      const fresh={}; _metaMem={}; try{ localStorage.setItem(META_KEY,JSON.stringify(fresh)); }catch(e){}
+      if(_metaName){ try{ fetch(PMETA_URL+'/'+_metaName+'.json',{method:'PUT',body:JSON.stringify({credits:0,unlocked:[],abil:{},ts:Date.now()})}).catch(()=>{}); }catch(e){} } // force-overwrite cloud so the merge can't restore it
+      me.abLevel=0; if($('menu').style.display!=='none') buildClassCards();
+      toast('Progress reset — credits 0, classes & abilities locked (local + cloud)'); break; }
   }
   if($('creditBal')) $('creditBal').textContent='💳 '+getCredits()+' credits'; // live-update menu credit display
   if($('menu')&&getComputedStyle($('menu')).display!=='none') buildClassCards();
