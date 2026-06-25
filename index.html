@@ -410,6 +410,8 @@ if('serviceWorker' in navigator){
 const WORLD={w:2600,h:2600};
 const SCORES_URL='https://survive-the-horde-default-rtdb.firebaseio.com/scores'; // global leaderboard (declared early — used at load)
 let _metaMem=null, _storageWarned=false;   // in-memory meta fallback (declared early — loadMeta runs at load)
+const PMETA_URL='https://survive-the-horde-default-rtdb.firebaseio.com/pmeta'; // cloud progress (declared early — used at load via saveMeta→pushCloudMeta)
+let _metaName=null, _cloudTimer=null;
 const CX=WORLD.w/2, CY=WORLD.h/2;
 // central buildable compound (a concrete pad) — build only allowed inside
 const ZONE={x:CX-340, y:CY-340, w:680, h:680};
@@ -654,8 +656,11 @@ function renderChampions(){ const el=$('champLine'); if(!el) return; const m=loa
 refreshChampions();
 { const lc=loadMeta().lastClass; if(lc && CLASSES[lc] && isUnlocked(lc)) selectedClass=lc; } // remember last-played class
 buildClassCards();
-$('nameInput').value='Survivor'+randi(1,99);
+{ let nm=''; try{ nm=localStorage.getItem('apocsurv_name')||''; }catch(e){}
+  $('nameInput').value = nm || ('Survivor'+randi(1,99)); }
 if(devUnlocked()) $('nameInput').value='ADMIN'; // developers play as ADMIN
+setMetaName($('nameInput').value); // pull this player's cloud progress (credits/unlocks) by name
+$('nameInput').addEventListener('change',()=>setMetaName($('nameInput').value)); // re-sync when they rename
 renderLeaderboard(); renderChampions();
 if(hasSave()){ const sd=loadSaveData(); const cb=$('continueBtn'); cb.style.display='inline-block';
   cb.textContent='▶ Continue (Day '+(Math.floor((sd.survivalT||0)/DAY_LEN)+1)+' · Wave '+((sd.wave||0)+1)+')'; cb.onclick=continueGame; }
@@ -692,6 +697,7 @@ function mkGun(type,override){
 // =====================================================================
 function startGame(opts){
   me.cls=selectedClass; me.name=($('nameInput').value||'Survivor').slice(0,12);
+  setMetaName(me.name); // make sure credits earned this run sync to the right cloud key
   { const m=loadMeta(); m.lastClass=me.cls; saveMeta(m); } // persist class choice
   diff=parseFloat($('diffSelect').value); botCount=parseInt($('botSelect').value); hardMode=diff>=1.8;
   applyClass();
@@ -2027,10 +2033,30 @@ const META_KEY='apocsurv_meta';
 function loadMeta(){ try{ const s=localStorage.getItem(META_KEY); if(s) return JSON.parse(s); }catch(e){} return _metaMem?JSON.parse(JSON.stringify(_metaMem)):{}; }
 function saveMeta(m){ _metaMem=JSON.parse(JSON.stringify(m)); // always keep it for this session
   try{ localStorage.setItem(META_KEY,JSON.stringify(m)); }
-  catch(e){ if(!_storageWarned){ _storageWarned=true; try{toast('⚠ Storage blocked — progress works this session but won\'t save after closing');}catch(_){} } } }
+  catch(e){ if(!_storageWarned){ _storageWarned=true; try{toast('⚠ Storage blocked — progress works this session but won\'t save after closing');}catch(_){} } }
+  pushCloudMeta(); } // mirror progress to the cloud (keyed by player name) so it survives even if local storage doesn't
+
+// ---- cloud-backed progress: credits/unlocks/abilities follow your NAME via Firebase, with localStorage as a cache ----
+// (PMETA_URL / _metaName / _cloudTimer are declared EARLY near SCORES_URL — they're used at load via saveMeta→pushCloudMeta)
+function metaKeyFor(name){ return String(name||'').toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,16); }
+function pushCloudMeta(){ if(!_metaName) return; if(_cloudTimer) clearTimeout(_cloudTimer);
+  _cloudTimer=setTimeout(()=>{ const m=loadMeta();
+    try{ fetch(PMETA_URL+'/'+_metaName+'.json',{method:'PUT',body:JSON.stringify({credits:m.credits||0,unlocked:m.unlocked||[],abil:m.abil||{},ts:Date.now()})}).catch(()=>{}); }catch(e){}
+  },700); }
+function setMetaName(name){ const k=metaKeyFor(name); if(!k||k===_metaName) return; _metaName=k;
+  try{ localStorage.setItem('apocsurv_name', name); }catch(e){}
+  fetch(PMETA_URL+'/'+k+'.json').then(r=>r.json()).then(cloud=>{ if(!cloud) return; // merge cloud into local (take the best of each — never lose progress)
+    const m=loadMeta();
+    m.credits=Math.max(m.credits||0, cloud.credits||0);
+    m.unlocked=Array.from(new Set([...(m.unlocked||[]), ...(cloud.unlocked||[])]));
+    m.abil=m.abil||{}; const ca=cloud.abil||{}; for(const kk in ca) m.abil[kk]=Math.max(m.abil[kk]||0, ca[kk]||0);
+    saveMeta(m); // writes local cache + re-pushes the merged union to cloud
+    try{ if($('creditBal')) $('creditBal').textContent='💳 '+getCredits()+' credits'; }catch(_){}
+    try{ if($('menu')&&getComputedStyle($('menu')).display!=='none') buildClassCards(); }catch(_){}
+  }).catch(()=>{}); }
 function monthKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function monthName(key){ const [y,mo]=(key||monthKey()).split('-'); return new Date(+y,+mo-1,1).toLocaleString(undefined,{month:'long',year:'numeric'}); }
-function isUnlocked(key){ return true; } // all classes free/playable (was credit/champion gated; removed for reliability)
+function isUnlocked(key){ const c=CLASSES[key]; if(!c||!(c.special||c.buy)) return true; return (loadMeta().unlocked||[]).includes(key); }
 function metaHas(key){ return (loadMeta().unlocked||[]).includes(key); }
 function unlockClass(key){ const m=loadMeta(); m.unlocked=m.unlocked||[]; if(!m.unlocked.includes(key)){ m.unlocked.push(key); saveMeta(m); return true; } return false; }
 function getCredits(){ return loadMeta().credits||0; }
