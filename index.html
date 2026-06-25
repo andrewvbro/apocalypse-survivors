@@ -327,7 +327,7 @@
 <div id="menu">
   <h1>APOCALYPSE&nbsp;SURVIVORS</h1>
   <div class="tag">CO-OP TOP-DOWN SURVIVAL · CHOOSE YOUR CLASS · OUTLAST THE HORDE</div>
-  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 25 · 2026-06-25</div>
+  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 26 · 2026-06-25</div>
   <div style="margin-top:6px"><button id="menuResetBtn" style="background:#2a1414;border:1px solid #5a2a2a;color:#e7a; border-radius:6px;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">↺ Reset progress (Bio-Cores, classes, abilities)</button></div>
 
   <div class="panel" id="classPanel">
@@ -498,18 +498,24 @@ const BENCH={x:CX, y:CY-260, r:30};
 const SKILL_BRANCHES=[{name:'OFFENSE',color:'#ff7a30'},{name:'DEFENSE',color:'#6fd6ff'},{name:'UTILITY',color:'#7fce4b'}];
 const SKILLS=[
   // OFFENSE
-  {key:'power',     branch:0, tier:0,             name:'Power',       desc:'+10% weapon damage',        max:5, icon:'💥'},
-  {key:'quickhands',branch:0, tier:1, req:'power', name:'Quick Hands', desc:'+12% reload speed',         max:5, icon:'🔄'},
-  {key:'deadeye',   branch:0, tier:2, req:'quickhands', name:'Deadeye', desc:'+8% weapon damage',        max:5, icon:'🎯'},
+  {key:'power',      branch:0, tier:0,                 name:'Power',       desc:'+10% weapon damage',       max:5, icon:'💥'},
+  {key:'quickhands', branch:0, tier:1, req:'power',     name:'Quick Hands', desc:'+12% reload speed',        max:5, icon:'🔄'},
+  {key:'deadeye',    branch:0, tier:2, req:'quickhands',name:'Deadeye',     desc:'+8% weapon damage',        max:5, icon:'🎯'},
+  {key:'fury',       branch:0, tier:3, req:'deadeye',   name:'Fury',        desc:'+6% fire rate',            max:5, icon:'🔥'},
+  {key:'executioner',branch:0, tier:4, req:'fury',      name:'Executioner', desc:'+10% weapon damage',       max:5, icon:'💀'},
   // DEFENSE
-  {key:'vitality',  branch:1, tier:0,                name:'Vitality',  desc:'+15% max health',          max:5, icon:'❤️'},
-  {key:'bulwark',   branch:1, tier:1, req:'vitality', name:'Bulwark',   desc:'+4% damage reduction',     max:5, icon:'🛡️'},
-  {key:'mending',   branch:1, tier:2, req:'bulwark',  name:'Mending',   desc:'+1 HP/sec regeneration',   max:5, icon:'➕'},
+  {key:'vitality',   branch:1, tier:0,                  name:'Vitality',    desc:'+15% max health',          max:5, icon:'❤️'},
+  {key:'bulwark',    branch:1, tier:1, req:'vitality',  name:'Bulwark',     desc:'+4% damage reduction',     max:5, icon:'🛡️'},
+  {key:'mending',    branch:1, tier:2, req:'bulwark',   name:'Mending',     desc:'+1 HP/sec regeneration',   max:5, icon:'➕'},
+  {key:'juggernaut', branch:1, tier:3, req:'mending',   name:'Juggernaut',  desc:'+8% max health',           max:5, icon:'🦏'},
+  {key:'siphon',     branch:1, tier:4, req:'juggernaut',name:'Siphon',      desc:'Heal 3% of damage dealt',  max:3, icon:'🩸'},
   // UTILITY
-  {key:'agility',   branch:2, tier:0,                 name:'Agility',   desc:'+8% move speed',           max:5, icon:'🥾'},
-  {key:'scavenger', branch:2, tier:1, req:'agility',  name:'Scavenger', desc:'+15% cash, scrap & XP',    max:5, icon:'💰'},
-  {key:'tactician', branch:2, tier:2, req:'scavenger',name:'Tactician', desc:'-10% ability cooldown',    max:5, icon:'⏱️'},
-  {key:'magnet',    branch:2, tier:3, req:'tactician', unlock:'magnet', name:'Scrap Magnet', desc:'Pulls nearby loot toward you (boss-locked)', max:3, icon:'🧲'},
+  {key:'agility',    branch:2, tier:0,                  name:'Agility',     desc:'+8% move speed',           max:5, icon:'🥾'},
+  {key:'scavenger',  branch:2, tier:1, req:'agility',   name:'Scavenger',   desc:'+15% cash, scrap & XP',    max:5, icon:'💰'},
+  {key:'tactician',  branch:2, tier:2, req:'scavenger', name:'Tactician',   desc:'-10% ability cooldown',    max:5, icon:'⏱️'},
+  {key:'fleet',      branch:2, tier:3, req:'tactician', name:'Fleet',       desc:'+6% move speed',           max:5, icon:'💨'},
+  {key:'stamina',    branch:2, tier:4, req:'fleet',     name:'Endurance',   desc:'+20% stamina & faster sprint recovery', max:5, icon:'⚡'},
+  {key:'magnet',     branch:2, tier:5, req:'stamina', unlock:'magnet', name:'Scrap Magnet', desc:'Pulls nearby loot toward you (boss-locked)', max:3, icon:'🧲'},
 ];
 // weapon upgrade tracks (spend scrap at the bench)
 const WUP=[
@@ -757,7 +763,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshC
 addEventListener('focus',()=>refreshCores());
 addEventListener('load',()=>refreshCores()); // re-sync the saved Bio-Cores total once everything's initialized (guards against a stale 0 at first paint)
 // build badge shows actual saved data, so stale-cache vs data issues are diagnosable at a glance
-function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 25 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
+function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 26 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
 updateVerBadge();
 // visible manual reset (no dev panel / URL needed) — clears Bio-Cores, unlocks, abilities, save
 $('menuResetBtn').onclick=()=>{ resetProgress(); buildClassCards(); refreshCores(); updateVerBadge(); { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } try{toast('Progress reset — clean slate');}catch(e){} };
@@ -1000,7 +1006,7 @@ function switchGun(i){ if(i>=0 && i<me.guns.length && i!==me.gunIdx){ me.gunIdx=
 function reload(){ const g=curGun(); if(!g||me.reloading||g.ammo>=g.mag||g.reserve<=0) return;
   me.reloading=now()+g.spec.reload*(me.reloadMul||1); SFX.reload(); toast('Reloading…',600); }
 function meleeSwing(t){
-  const g=curGun(); const rpm=g.spec.rpm*(1+0.08*((g.up&&g.up.rof)||0));
+  const g=curGun(); const rpm=g.spec.rpm*(1+0.08*((g.up&&g.up.rof)||0))*(me.rofMul||1);
   if(t-me.lastShot<60000/rpm) return; me.lastShot=t;
   const dmg=g.spec.dmg*me.dmgMul*(now()<me.dmgBuffUntil?(me.sniperBuff||3):1);
   for(const z of zombies){ if(!z.alive) continue; const d=dist(me.x,me.y,z.x,z.y);
@@ -1015,7 +1021,7 @@ function tryFire(t){
   if(g.spec.melee){ meleeSwing(t); return; }
   if(me.reloading){ if(t>=me.reloading){ const need=g.mag-g.ammo, take=Math.min(need,g.reserve); g.ammo+=take; g.reserve-=take; me.reloading=0; refreshHud(); } else return; }
   if(g.ammo<=0){ if(g.reserve<=0){ switchGun(0); toast('Out of ammo — back to melee'); return; } reload(); return; }
-  let rpm=g.spec.rpm*(1+0.08*(g.up.rof||0)); if(t<me.surgeUntil) rpm*=1.7;
+  let rpm=g.spec.rpm*(1+0.08*(g.up.rof||0))*(me.rofMul||1); if(t<me.surgeUntil) rpm*=1.7;
   const interval=60000/rpm;
   if(t-me.lastShot<interval) return;
   me.lastShot=t; g.ammo--; if(dev.infAmmo){ g.ammo=g.mag; g.reserve=g.spec.reserve||g.reserve; } refreshHud();
@@ -1140,14 +1146,17 @@ function healArea(x,y,r,amt){
 // =====================================================================
 function applySkills(){
   const s=me.skills, c=CLASSES[me.cls];
-  me.dmgMul    = 1 + 0.10*(s.power||0) + 0.08*(s.deadeye||0);
-  me.speedMul  = 1 + 0.08*(s.agility||0);
+  me.dmgMul    = 1 + 0.10*(s.power||0) + 0.08*(s.deadeye||0) + 0.10*(s.executioner||0);
+  me.speedMul  = 1 + 0.08*(s.agility||0) + 0.06*(s.fleet||0);
   me.reloadMul = 1/(1 + 0.12*(s.quickhands||0));
+  me.rofMul    = 1 + 0.06*(s.fury||0);
   me.cdMul     = Math.max(0.4, 1 - 0.10*(s.tactician||0));
   me.gainMul   = 1 + 0.15*(s.scavenger||0);
+  me.lifesteal = 0.03*(s.siphon||0);
+  me.maxStamina = 100 * (1 + 0.20*(s.stamina||0));
   me.magnetR   = (s.magnet||0)>0 ? 110 + (s.magnet||0)*70 : 0;
   // ability-upgrade passives (cumulative, one per upgrade level)
-  me.regen=0; me.passiveDR=1; let hpMul=1;
+  me.regen=0; me.passiveDR=1; let hpMul=1 + 0.08*(s.juggernaut||0);
   // skill-tree passives
   me.regen += (s.mending||0);
   me.passiveDR *= (1 - 0.04*(s.bulwark||0));
@@ -1412,7 +1421,8 @@ function generatorDestroyed(){ if(gameOver) return; toast('⚡ THE GENERATOR WAS
 function damageZombie(zid,dmg,by){
   const z=zombies.find(z=>z.id===zid); if(!z||!z.alive) return;
   if(dev.oneShot) dmg=999999;
-  z.hp-=dmg*(1-(z.resist||0)); z.lastHit=now();
+  const eff=dmg*(1-(z.resist||0)); z.hp-=eff; z.lastHit=now();
+  if(by===me.id && me.lifesteal>0 && me.alive && !me.downed) me.hp=Math.min(me.maxhp, me.hp+eff*me.lifesteal); // Siphon skill
   if(z.hp<=0){ killZombie(z,by); }
 }
 function explodeDamage(x,y,r,dmg){
