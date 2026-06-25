@@ -1960,7 +1960,7 @@ function renderAdmin(){
     <div class="agrp">Give</div>${act('+$1000','cash')}${act('+500 scrap','scrap')}${act('+5 skill pts','sp')}${act('+5000 XP','xp')}${act('Full heal','heal')}
     <div class="agrp">Weapons</div>${act('Random weapon','rweap')}${act('All weapons','allweap')}
     <div class="agrp">Waves & spawns</div>${act('Clear zombies','clear')}${act('Spawn 10','spawn10')}${act('Spawn boss','boss')}${act('Skip wave','skipwave')}
-    <div class="agrp">Unlocks</div>${act('Unlock all classes','unlockcls')}${act('Max ability lvls','maxabil')}${act('Heal generator','genheal')}${act('↺ Reset progress','resetprog')}${act('Reset dev/save','wipe')}
+    <div class="agrp">Unlocks</div>${act('Heal generator','genheal')}${act('↺ Reset progress','resetprog')}${act('Reset dev/save','wipe')}
     <div class="ahint">toggle with <b>\`</b> (backtick)</div>`;
   $('admin').querySelectorAll('[data-tog]').forEach(b=>b.onclick=()=>{ dev[b.dataset.tog]=!dev[b.dataset.tog]; renderAdmin(); });
   $('admin').querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>adminAct(b.dataset.act));
@@ -1979,8 +1979,6 @@ function adminAct(a){ const m=loadMeta();
     case 'spawn10': if(isHost||soloMode()){ for(let i=0;i<10;i++) spawnOne(); enemiesAlive+=10; } break;
     case 'boss': if(isHost||soloMode()){ const bp=spawnPos(randi(0,3)); zombies.push(mkZombie('behemoth',bp.x,bp.y)); enemiesAlive++; } break;
     case 'skipwave': spawnQueue=0; zombies.length=0; enemiesAlive=0; break;
-    case 'unlockcls': m.unlocked=CLASS_KEYS.slice(); saveMeta(m); if($('menu').style.display!=='none') buildClassCards(); toast('All classes unlocked'); break;
-    case 'maxabil': m.abil={}; CLASS_KEYS.forEach(k=>m.abil[k]=3); saveMeta(m); me.abLevel=3; if($('menu').style.display!=='none') buildClassCards(); toast('Ability levels maxed'); break;
     case 'genheal': if(generator) generator.hp=generator.maxhp; toast('Generator repaired'); break;
     case 'wipe': localStorage.removeItem('apocsurv_meta'); localStorage.removeItem('apocsurv_save'); localStorage.removeItem('apocsurv_scores'); toast('Cleared meta/save/scores'); break;
     case 'resetprog': { // full clean slate: Bio-Cores/unlocks/abilities/saved run/local scores (local + cloud), keep dev access & global leaderboard
