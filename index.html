@@ -247,6 +247,7 @@
 </div>
 <div id="skills" class="gmenu"><div class="gbox" id="skillsBox"></div></div>
 <div id="upgrade" class="gmenu"><div class="gbox" id="upgradeBox"></div></div>
+<div id="inv" class="gmenu"><div class="gbox" id="invBox"></div></div>
 
 <div id="mobileControls">
   <div class="stick" id="moveStick"><div class="nub"></div></div>
@@ -275,7 +276,7 @@
       </label>
       <label class="fld">Difficulty
         <select id="diffSelect">
-          <option value="0.8">Recruit</option><option value="1" selected>Survivor</option><option value="1.35">Nightmare</option>
+          <option value="0.8">Recruit</option><option value="1" selected>Survivor</option><option value="1.35">Nightmare</option><option value="1.8">☠ Hard Mode</option>
         </select>
       </label>
     </div>
@@ -485,13 +486,24 @@ const GUNS={
   marksman:{name:'Marksman Rifle',dmg:58,rpm:200, mag:10, reserve:60,  reload:1900, spread:.02, speed:1000,range:780, pellets:1, auto:false,col:'#9fe0ff'},
   revolver:{name:'Revolver',     dmg:46, rpm:150, mag:6,  reserve:48,  reload:1500, spread:.03, speed:860, range:620, pellets:1, auto:false,col:'#e0b060'},
   autoshotgun:{name:'Auto Shotgun',dmg:11,rpm:200,mag:10, reserve:60,  reload:2400, spread:.24, speed:680, range:340, pellets:6, auto:true, col:'#ff8a5b'},
+  vector:  {name:'Vector SMG',   dmg:11, rpm:1100,mag:33, reserve:200, reload:1500, spread:.07, speed:760, range:470, pellets:1, auto:true, col:'#bfe6a0'},
+  battlerifle:{name:'Battle Rifle',dmg:34,rpm:380,mag:20, reserve:100, reload:2000, spread:.03, speed:920, range:680, pellets:1, auto:true, col:'#d8c27a'},
+  carbine: {name:'Carbine',      dmg:16, rpm:720, mag:30, reserve:150, reload:1600, spread:.05, speed:840, range:600, pellets:1, auto:true, col:'#e0d090'},
+  tommygun:{name:'Tommy Gun',    dmg:14, rpm:700, mag:50, reserve:200, reload:2200, spread:.09, speed:740, range:480, pellets:1, auto:true, col:'#c8a060'},
+  sawedoff:{name:'Sawed-Off',    dmg:17, rpm:110, mag:2,  reserve:40,  reload:1500, spread:.30, speed:680, range:300, pellets:7, auto:false,col:'#d98a4b'},
+  plasma:  {name:'Plasma Rifle', dmg:26, rpm:460, mag:24, reserve:140, reload:1900, spread:.04, speed:900, range:640, pellets:1, auto:true, col:'#5fe0ff'},
+  railgun: {name:'Railgun',      dmg:150,rpm:48,  mag:4,  reserve:28,  reload:2600, spread:0,   speed:1400,range:1000,pellets:1, auto:false,col:'#b07fff'},
+  dualpistols:{name:'Dual Pistols',dmg:15,rpm:640,mag:24, reserve:160, reload:1300, spread:.06, speed:800, range:520, pellets:1, auto:true, col:'#cfe0ff'},
+  crossbow:{name:'Crossbow',     dmg:90, rpm:70,  mag:5,  reserve:40,  reload:1800, spread:.01, speed:780, range:720, pellets:1, auto:false,col:'#9fae7a'},
+  flak:    {name:'Flak Cannon',  dmg:13, rpm:170, mag:8,  reserve:56,  reload:2200, spread:.22, speed:700, range:380, pellets:5, auto:true, col:'#ffb03a'},
 };
 // secondary weapons everyone can swap to (slots 2,3)
 const SECONDARY={name:'Sidearm', dmg:14, rpm:300, mag:12, reserve:9999, reload:1000, spread:.05, speed:760, range:520, pellets:1, auto:false, col:'#cfd6c0'};
 const HEAVY_SEC={name:'Magnum', dmg:48, rpm:120, mag:6, reserve:9999, reload:1400, spread:.03, speed:820, range:600, pellets:1, auto:false, col:'#ff6b6b'};
 // starting melee weapon (everyone spawns with this, no gun) + random guns dropped by zombies
 const MELEE={name:'Machete', melee:true, dmg:34, rpm:170, range:62, arc:1.15, col:'#cfd6c0', mag:0, ammo:0, reserve:0, spread:0, pellets:0, speed:0, range_:0, auto:true};
-const WEAPON_DROPS=['pistol','pistol','smg','smg','shotgun','rifle','rifle','flamer','revolver','autoshotgun','lmg','marksman','minigun'];
+const WEAPON_DROPS=['pistol','pistol','smg','smg','shotgun','rifle','rifle','flamer','revolver','autoshotgun','lmg','marksman','minigun',
+  'vector','battlerifle','carbine','tommygun','sawedoff','plasma','dualpistols','crossbow','flak','carbine','vector','railgun'];
 
 // =====================================================================
 // STATE
@@ -521,7 +533,7 @@ let isBloodMoon=false;
 let survivalT=0, lastDay=1; const DAY_LEN=90; // seconds of survival per "day"
 function currentDay(){ return Math.floor(survivalT/DAY_LEN)+1; }
 let started=false, gameOver=false, paused=false;
-let net=null, isHost=false, diff=1, botCount=2;
+let net=null, isHost=false, diff=1, botCount=2, hardMode=false;
 const cam={x:0,y:0}; let camZoom=1, camZoomTarget=1;
 const keys={}; let mouse={x:0,y:0,down:false,wx:0,wy:0};
 let zidSeq=1;
@@ -533,12 +545,13 @@ addEventListener('keydown',e=>{
   const k=e.key.toLowerCase(); keys[k]=true;
   if(k==='m'){ const on=SFX.toggle(); $('muteBtn').textContent=on?'🔊':'🔇'; toast(on?'🔊 Sound on':'🔇 Muted'); return; }
   if(k==='`'){ e.preventDefault(); toggleAdmin(); return; }
-  if(paused){ if(k==='escape'||k==='k'||k==='e') closePanel(); return; }
+  if(paused){ if(k==='escape'||k==='k'||k==='e'||k==='i') closePanel(); return; }
   if(k===' '){ e.preventDefault(); useAbility(); }
   if(k==='q'){ useAbility2(); }
   if(k==='r') reload();
   if(k==='b'){ toggleBuild(); }
   if(k==='k'){ openPanel('skills'); }
+  if(k==='i'){ openPanel('inv'); }
   if(k==='e'){ if(nearBench()) openPanel('upgrade'); else toast('Find the upgrade bench in the compound'); }
   if(k==='escape'){ if(buildMode) toggleBuild(); else togglePause(); }
   if(k==='x' && buildMode){ selectedBuild='delete'; refreshBuildBar(); }
@@ -605,6 +618,7 @@ refreshChampions();
 { const lc=loadMeta().lastClass; if(lc && CLASSES[lc] && isUnlocked(lc)) selectedClass=lc; } // remember last-played class
 buildClassCards();
 $('nameInput').value='Survivor'+randi(1,99);
+if(devUnlocked()) $('nameInput').value='ADMIN'; // developers play as ADMIN
 renderLeaderboard(); renderChampions();
 if(hasSave()){ const sd=loadSaveData(); const cb=$('continueBtn'); cb.style.display='inline-block';
   cb.textContent='▶ Continue (Day '+(Math.floor((sd.survivalT||0)/DAY_LEN)+1)+' · Wave '+((sd.wave||0)+1)+')'; cb.onclick=continueGame; }
@@ -637,15 +651,15 @@ function mkGun(type,override){
 function startGame(opts){
   me.cls=selectedClass; me.name=($('nameInput').value||'Survivor').slice(0,12);
   { const m=loadMeta(); m.lastClass=me.cls; saveMeta(m); } // persist class choice
-  diff=parseFloat($('diffSelect').value); botCount=parseInt($('botSelect').value);
+  diff=parseFloat($('diffSelect').value); botCount=parseInt($('botSelect').value); hardMode=diff>=1.8;
   applyClass();
-  me.x=CX+rand(-40,40); me.y=CY+150; me.alive=true; me.dead=false; me.downed=false; me.cash=150; me.kills=0;
+  me.x=CX+rand(-40,40); me.y=CY+150; me.alive=true; me.dead=false; me.downed=false; me.cash=hardMode?80:150; me.kills=0;
   me.stamina=me.maxStamina; buildMode=false; structures=[]; hazards=[]; isBloodMoon=false; drones=[]; turrets=[]; repairDrones=[];
   generator={x:CX,y:CY,hp:1500,maxhp:1500,r:30};
   me.scrap=0; me.xp=0; me.level=1; me.xpNext=xpForLevel(1); me.skillPoints=0; me.skills={}; applySkills();
   me.abLevel=abilityLevel(me.cls);
   survivalT=0; lastDay=1; me.fireRingUntil=0; me.dmgBuffUntil=0; me.zoomUntil=0; me.ab2Ready=0; camZoom=1; camZoomTarget=1; clearSave();
-  paused=false; openMenu=null; $('skills').style.display='none'; $('upgrade').style.display='none'; $('pause').style.display='none';
+  paused=false; openMenu=null; $('skills').style.display='none'; $('upgrade').style.display='none'; $('inv').style.display='none'; $('pause').style.display='none';
   $('buildbar').style.display='none'; $('buildHint').style.display='none'; $('bloodmoon').classList.remove('on');
   $('menu').style.display='none'; started=true; gameOver=false;
   $('hudDot').style.background=CLASSES[me.cls].color;
@@ -1089,9 +1103,9 @@ function mkZombie(type,x,y){ const s=ZTYPES[type]||ZTYPES.walker;
 function scheduleNextWave(delay){ nextWaveAt=now()+delay; waveActive=false; }
 function startWave(){
   wave++; waveActive=true;
-  isBloodMoon = wave%4===0;
-  const isBoss = wave%10===0;
-  let base=5+wave*2.5; if(isBloodMoon) base*=1.7; if(isBoss) base*=0.5; // fewer trash mobs on boss waves
+  isBloodMoon = hardMode ? (wave%3===0) : (wave%4===0);   // hard mode: blood moon every 3rd wave
+  const isBoss = hardMode ? (wave%8===0) : (wave%10===0); // hard mode: boss every 8th wave
+  let base=5+wave*2.5; if(isBloodMoon) base*=1.7; if(isBoss) base*=0.5; if(hardMode) base*=1.3; // hard mode: bigger hordes
   spawnQueue=Math.round(base*diff); enemiesAlive=spawnQueue; spawnTimer=0;
   $('bloodmoon').classList.toggle('on',isBloodMoon);
   if(isBoss){ spawnBoss(); SFX.boss(); banner('👹 BOSS FIGHT','Wave '+wave+' — slay the '+bossName); toast('A '+bossName+' closes in…',2800); }
@@ -1104,12 +1118,13 @@ function startWave(){
 const BOSS_TYPES=['behemoth','brood','reaver','titan'];
 let bossName='Behemoth';
 function spawnBoss(){
-  const tier=Math.floor(wave/10);           // 1 at wave 10, 2 at wave 20, …
-  const count=Math.min(tier,3);             // up to 3 bosses at once
-  const mult=1+(tier-1)*0.6;
-  const type=BOSS_TYPES[(tier-1)%BOSS_TYPES.length]; bossName=(ZTYPES[type].name||'BOSS');
+  const step=hardMode?8:10;
+  const n=Math.max(1,Math.round(wave/step));   // which boss wave: 1,2,3,…
+  const count=Math.min(n,3);                    // up to 3 bosses at once
+  const mult=1+(n-1)*0.5;
+  const type=BOSS_TYPES[(n-1)%BOSS_TYPES.length]; bossName=ZTYPES[type].name||'BOSS';
   for(let i=0;i<count;i++){ const m=spawnPos(randi(0,3)); const bh=mkZombie(type,m.x,m.y);
-    bh.hp*=mult; bh.maxhp*=mult; bh.dmg*=1+(tier-1)*0.3;
+    bh.hp*=mult; bh.maxhp*=mult; bh.dmg*=1+(n-1)*0.25;
     zombies.push(bh); enemiesAlive++; }
 }
 function spawnPos(edge){ let x,y;
@@ -1656,17 +1671,17 @@ function drawWeapon(type){
       ctx.fillStyle='#2b241c'; ctx.fillRect(2,-2,7,4);            // handle
       ctx.fillStyle='#c8d0d6'; ctx.beginPath(); ctx.moveTo(9,-3); ctx.lineTo(26,-2); ctx.lineTo(28,1); ctx.lineTo(9,3); ctx.closePath(); ctx.fill(); // blade
       ctx.fillStyle='#9aa3aa'; ctx.fillRect(9,-1,15,1); break;
-    case 'rifle': case 'lmg': case 'marksman': case 'minigun':
+    case 'rifle': case 'lmg': case 'marksman': case 'minigun': case 'battlerifle': case 'carbine': case 'plasma': case 'railgun': case 'crossbow':
       ctx.fillStyle='#3a3a3a'; ctx.fillRect(0,-2,6,4);          // stock
       ctx.fillStyle='#2b2b2b'; ctx.fillRect(4,-2.5,24,5);       // receiver + barrel
       ctx.fillStyle='#1c1c1c'; ctx.fillRect(8,2,5,8);           // magazine
       ctx.fillStyle=ac;        ctx.fillRect(25,-1.5,4,3); break;// muzzle accent
-    case 'shotgun': case 'autoshotgun':
+    case 'shotgun': case 'autoshotgun': case 'sawedoff': case 'flak':
       ctx.fillStyle='#3a2e22'; ctx.fillRect(0,-3.5,11,7);       // wood stock
       ctx.fillStyle='#2b2b2b'; ctx.fillRect(9,-3.5,17,7);       // twin barrels
       ctx.fillStyle='#1c1c1c'; ctx.fillRect(14,3,8,3);          // pump
       ctx.fillStyle=ac;        ctx.fillRect(24,-3.5,2,7); break;
-    case 'smg':
+    case 'smg': case 'vector': case 'tommygun': case 'dualpistols':
       ctx.fillStyle='#3a3a3a'; ctx.fillRect(1,-2,4,4);
       ctx.fillStyle='#2b2b2b'; ctx.fillRect(3,-2.5,16,5);       // short body
       ctx.fillStyle='#1c1c1c'; ctx.fillRect(7,2,4,9);           // long curved mag
@@ -1811,7 +1826,7 @@ function refreshBoard(){
 let openMenu=null;
 function openPanel(id){ if(!started||gameOver||openMenu) return; openMenu=id; paused=true; mouse.down=false;
   if(id==='pause') saveGame();
-  if(id==='skills'||id==='upgrade') renderPanel(id);
+  if(id==='skills'||id==='upgrade'||id==='inv') renderPanel(id);
   $(id).style.display='flex'; }
 function closePanel(){ if(!openMenu) return; $(openMenu).style.display='none'; openMenu=null; paused=false; }
 function togglePause(){ if(openMenu==='pause') closePanel(); else if(!openMenu) openPanel('pause'); }
@@ -1823,7 +1838,8 @@ function quitToMenu(){ saveGame(); if(net&&net.peer){ try{ net.peer.destroy(); }
 const DEV_CODE='apocdev'; // also unlockable via ?dev=apocdev
 const dev={ open:false, god:false, infAmmo:false, oneShot:false, godGen:false };
 function devUnlocked(){ try{ return localStorage.getItem('apocsurv_dev')==='1'; }catch(e){ return false; } }
-function grantDev(){ try{ localStorage.setItem('apocsurv_dev','1'); }catch(e){} }
+function grantDev(){ try{ localStorage.setItem('apocsurv_dev','1'); }catch(e){}
+  try{ const ni=$('nameInput'); if(ni && (!ni.value||/^Survivor\d*$/.test(ni.value))) ni.value='ADMIN'; }catch(e){} }
 function toggleAdmin(){
   dev.open=!dev.open; const el=$('admin'); el.style.display=dev.open?'block':'none'; if(dev.open) renderAdmin();
 }
@@ -1877,7 +1893,20 @@ function adminAct(a){ const m=loadMeta();
   }
   refreshHud();
 }
-function renderPanel(id){ if(id==='skills') renderSkills(); else if(id==='upgrade') renderUpgrade(); }
+function renderPanel(id){ if(id==='skills') renderSkills(); else if(id==='upgrade') renderUpgrade(); else if(id==='inv') renderInventory(); }
+function renderInventory(){
+  $('invBox').innerHTML=`<h2>🎒 INVENTORY</h2>
+    <div class="ghead"><span>${me.guns.length}/${GUN_CAP} weapons · click to equip</span><span>Cash $${me.cash} · ⚙${me.scrap}</span></div>`
+    + me.guns.map((g,i)=>{ const eq=i===me.gunIdx, melee=g.spec.melee;
+        const ammo=melee?'∞ melee':(g.ammo+' / '+(g.spec.reserve>2000?'∞':g.reserve));
+        const ups=melee?'':` <span class="det">⬆ dmg ${g.up.dmg} · rof ${g.up.rof} · mag ${g.up.mag}</span>`;
+        return `<div class="uprow"${eq?' style="border-color:var(--acc)"':''}><div class="si">${{melee:'🔪',shotgun:'🔫',autoshotgun:'🔫',sawedoff:'🔫',flak:'🔫',pistol:'🔫',revolver:'🔫',dualpistols:'🔫',flamer:'🔥',railgun:'⚡',plasma:'⚡'}[g.type]||'🔫'}</div>
+          <div class="sm"><div class="snm">${g.spec.name}${eq?' <span style="color:var(--acc)">[equipped]</span>':''}</div><div class="sd">${ammo}${ups}</div></div>
+          <div style="display:flex;gap:5px"><button class="buy" data-eq="${i}">${eq?'✓':'Equip'}</button>${melee?'':`<button class="buy" data-drop="${i}" style="border-color:#5a2020;color:#d8453a;min-width:auto">✕</button>`}</div></div>`; }).join('')
+    + `<div class="closeRow"><button class="btn primary" onclick="closePanel()">Close (I)</button></div>`;
+  $('invBox').querySelectorAll('[data-eq]').forEach(b=>b.onclick=()=>{ switchGun(+b.dataset.eq); renderInventory(); });
+  $('invBox').querySelectorAll('[data-drop]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.drop; if(i>0&&i<me.guns.length){ me.guns.splice(i,1); if(me.gunIdx>=me.guns.length) me.gunIdx=me.guns.length-1; if(me.gunIdx<0)me.gunIdx=0; refreshHud(); refreshHotbar(); renderInventory(); } });
+}
 function renderSkills(){
   $('skillsBox').innerHTML=`<h2>★ SKILLS</h2>
     <div class="ghead"><span>Level <b>${me.level}</b> · XP ${Math.floor(me.xp)}/${me.xpNext}</span><span>Points: <b>${me.skillPoints}</b></span></div>`
@@ -1947,7 +1976,7 @@ function saveGame(){
 }
 function continueGame(){
   const d=loadSaveData(); if(!d) return;
-  selectedClass=d.cls; me.cls=d.cls; me.name=d.name||me.name; diff=d.diff||1; botCount=(d.botCount!=null?d.botCount:2);
+  selectedClass=d.cls; me.cls=d.cls; me.name=d.name||me.name; diff=d.diff||1; botCount=(d.botCount!=null?d.botCount:2); hardMode=diff>=1.8;
   isHost=false; net=null;
   applyClass();
   me.cash=d.cash||0; me.scrap=d.scrap||0; me.xp=d.xp||0; me.level=d.level||1; me.xpNext=d.xpNext||xpForLevel(me.level); me.skillPoints=d.skillPoints||0; me.skills=d.skills||{};
@@ -1961,7 +1990,7 @@ function continueGame(){
   me.fireRingUntil=0; me.dmgBuffUntil=0; me.zoomUntil=0; camZoom=1; camZoomTarget=1;
   buildMode=false; hazards=[]; drones=[]; turrets=[]; repairDrones=[]; isBloodMoon=false; paused=false; openMenu=null;
   bullets=[]; zombies=[]; pickups=[]; particles=[];
-  $('menu').style.display='none'; $('skills').style.display='none'; $('upgrade').style.display='none'; $('pause').style.display='none';
+  $('menu').style.display='none'; $('skills').style.display='none'; $('upgrade').style.display='none'; $('inv').style.display='none'; $('pause').style.display='none';
   $('buildbar').style.display='none'; $('buildHint').style.display='none'; $('bloodmoon').classList.remove('on');
   started=true; gameOver=false;
   $('hudDot').style.background=CLASSES[me.cls].color; $('hudClass').textContent=CLASSES[me.cls].name.toUpperCase(); $('hudAbName').textContent=CLASSES[me.cls].abName;
