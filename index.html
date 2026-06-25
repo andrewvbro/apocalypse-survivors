@@ -659,7 +659,12 @@ buildClassCards();
 { let nm=''; try{ nm=localStorage.getItem('apocsurv_name')||''; }catch(e){}
   $('nameInput').value = nm || ('Survivor'+randi(1,99)); }
 if(devUnlocked()) $('nameInput').value='ADMIN'; // developers play as ADMIN
-setMetaName($('nameInput').value); // pull this player's cloud progress (credits/unlocks) by name
+if(/[?&]reset(=|&|$)/i.test(location.search)){ // one-click reset link: .../?reset — wipes credits/unlocks/abilities (local + cloud) with no dev panel needed
+  resetProgress($('nameInput').value);
+  try{ history.replaceState(null,'',location.pathname); }catch(e){} // strip ?reset so a refresh doesn't keep wiping
+  buildClassCards(); if($('creditBal')) $('creditBal').textContent='💳 '+getCredits()+' credits';
+  try{ toast('Progress reset — clean slate (credits 0, special classes locked)'); }catch(e){}
+} else setMetaName($('nameInput').value); // pull this player's cloud progress (credits/unlocks) by name
 $('nameInput').addEventListener('change',()=>setMetaName($('nameInput').value)); // re-sync when they rename
 renderLeaderboard(); renderChampions();
 if(hasSave()){ const sd=loadSaveData(); const cb=$('continueBtn'); cb.style.display='inline-block';
@@ -1966,8 +1971,7 @@ function adminAct(a){ const m=loadMeta();
     case 'genheal': if(generator) generator.hp=generator.maxhp; toast('Generator repaired'); break;
     case 'wipe': localStorage.removeItem('apocsurv_meta'); localStorage.removeItem('apocsurv_save'); localStorage.removeItem('apocsurv_scores'); toast('Cleared meta/save/scores'); break;
     case 'resetprog': { // clean slate: clear credits/unlocks/abilities everywhere (local + cloud), keep dev access & leaderboard
-      const fresh={}; _metaMem={}; try{ localStorage.setItem(META_KEY,JSON.stringify(fresh)); }catch(e){}
-      if(_metaName){ try{ fetch(PMETA_URL+'/'+_metaName+'.json',{method:'PUT',body:JSON.stringify({credits:0,unlocked:[],abil:{},ts:Date.now()})}).catch(()=>{}); }catch(e){} } // force-overwrite cloud so the merge can't restore it
+      resetProgress(me.name||$('nameInput').value);
       me.abLevel=0; if($('menu').style.display!=='none') buildClassCards();
       toast('Progress reset — credits 0, classes & abilities locked (local + cloud)'); break; }
   }
@@ -2048,6 +2052,11 @@ function pushCloudMeta(){ if(!_metaName) return; if(_cloudTimer) clearTimeout(_c
   _cloudTimer=setTimeout(()=>{ const m=loadMeta();
     try{ fetch(PMETA_URL+'/'+_metaName+'.json',{method:'PUT',body:JSON.stringify({credits:m.credits||0,unlocked:m.unlocked||[],abil:m.abil||{},ts:Date.now()})}).catch(()=>{}); }catch(e){}
   },700); }
+function resetProgress(name){ // clean slate everywhere: clear local meta + force-overwrite cloud so the union-merge can't restore it
+  _metaName=metaKeyFor(name)||_metaName; _metaMem={};
+  try{ localStorage.setItem(META_KEY,'{}'); }catch(e){}
+  if(_metaName){ try{ fetch(PMETA_URL+'/'+_metaName+'.json',{method:'PUT',body:JSON.stringify({credits:0,unlocked:[],abil:{},ts:Date.now()})}).catch(()=>{}); }catch(e){} }
+}
 function setMetaName(name){ const k=metaKeyFor(name); if(!k||k===_metaName) return; _metaName=k;
   try{ localStorage.setItem('apocsurv_name', name); }catch(e){}
   fetch(PMETA_URL+'/'+k+'.json').then(r=>r.json()).then(cloud=>{ if(!cloud) return; // merge cloud into local (take the best of each — never lose progress)
