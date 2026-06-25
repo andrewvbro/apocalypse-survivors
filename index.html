@@ -307,7 +307,7 @@
 <div id="menu">
   <h1>APOCALYPSE&nbsp;SURVIVORS</h1>
   <div class="tag">CO-OP TOP-DOWN SURVIVAL · CHOOSE YOUR CLASS · OUTLAST THE HORDE</div>
-  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 23 · 2026-06-25</div>
+  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 24 · 2026-06-25</div>
   <div style="margin-top:6px"><button id="menuResetBtn" style="background:#2a1414;border:1px solid #5a2a2a;color:#e7a; border-radius:6px;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">↺ Reset progress (Bio-Cores, classes, abilities)</button></div>
 
   <div class="panel" id="classPanel">
@@ -728,7 +728,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshC
 addEventListener('focus',()=>refreshCores());
 addEventListener('load',()=>refreshCores()); // re-sync the saved Bio-Cores total once everything's initialized (guards against a stale 0 at first paint)
 // build badge shows actual saved data, so stale-cache vs data issues are diagnosable at a glance
-function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 23 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
+function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 24 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
 updateVerBadge();
 // visible manual reset (no dev panel / URL needed) — clears Bio-Cores, unlocks, abilities, save
 $('menuResetBtn').onclick=()=>{ resetProgress(); buildClassCards(); refreshCores(); updateVerBadge(); { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } try{toast('Progress reset — clean slate');}catch(e){} };
@@ -992,17 +992,18 @@ function tryFire(t){
   me.lastShot=t; g.ammo--; if(dev.infAmmo){ g.ammo=g.mag; g.reserve=g.spec.reserve||g.reserve; } refreshHud();
   const pellets=g.spec.pellets;
   const dmg=g.spec.dmg*me.dmgMul*(1+0.12*(g.up.dmg||0))*(now()<me.dmgBuffUntil?(me.sniperBuff||3):1);
+  const rngMul = now()<me.zoomUntil ? 5 : 1; // Overwatch: extend range so you can snipe across the zoomed-out view
   for(let i=0;i<pellets;i++){
     const sp=(Math.random()-0.5)*g.spec.spread*(pellets>1?1:1);
-    spawnBullet(me.x,me.y,me.aim+sp,g.spec,me.id,true,dmg);
+    spawnBullet(me.x,me.y,me.aim+sp,g.spec,me.id,true,dmg,rngMul);
   }
   // recoil/muzzle
   spawnMuzzle(me.x,me.y,me.aim,g.spec.col); SFX.shot(g.type);
   if(net) net.send({t:'shot',x:Math.round(me.x),y:Math.round(me.y),a:+me.aim.toFixed(2),g:g.type});
   if(g.ammo<=0) reload();
 }
-function spawnBullet(x,y,a,spec,owner,mine,dmg){
-  bullets.push({ x,y, vx:Math.cos(a)*spec.speed, vy:Math.sin(a)*spec.speed, life:spec.range/spec.speed,
+function spawnBullet(x,y,a,spec,owner,mine,dmg,rngMul){
+  bullets.push({ x,y, vx:Math.cos(a)*spec.speed, vy:Math.sin(a)*spec.speed, life:spec.range*(rngMul||1)/spec.speed,
     dmg:(dmg!=null?dmg:spec.dmg), owner, mine, col:spec.col, flame:!!spec.flame, r:spec.flame?7:3, thruStruct:!!spec.thruStruct });
 }
 function spawnMuzzle(x,y,a,col){ for(let i=0;i<4;i++){ const sp=rand(40,180); const ang=a+rand(-.4,.4);
