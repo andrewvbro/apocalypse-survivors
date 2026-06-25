@@ -1975,9 +1975,8 @@ function adminAct(a){ const m=loadMeta();
       { const cb=$('continueBtn'); if(cb) cb.style.display='none'; }
       toast('Full reset — stats, items & classes cleared (local + cloud)'); break; }
   }
-  if($('creditBal')) $('creditBal').textContent='💳 '+getCredits()+' credits'; // live-update menu credit display
-  if($('menu')&&getComputedStyle($('menu')).display!=='none') buildClassCards();
-  refreshHud(); if(dev.open) renderAdmin();
+  refreshCredits(); // instant credit display update (menu total, class cards, dev panel)
+  refreshHud();
 }
 function renderPanel(id){ if(id==='skills') renderSkills(); else if(id==='upgrade') renderUpgrade(); else if(id==='inv') renderInventory(); }
 const GUN_ICON=g=>({melee:'🔪',shotgun:'🔫',autoshotgun:'🔫',sawedoff:'🔫',flak:'🔫',pistol:'🔫',revolver:'🔫',dualpistols:'🔫',flamer:'🔥',railgun:'⚡',plasma:'⚡'}[g.type]||'🔫');
@@ -2059,6 +2058,11 @@ function isUnlocked(key){ const c=CLASSES[key]; if(!c||!(c.special||c.buy)) retu
 function metaHas(key){ return (loadMeta().unlocked||[]).includes(key); }
 function unlockClass(key){ const m=loadMeta(); m.unlocked=m.unlocked||[]; if(!m.unlocked.includes(key)){ m.unlocked.push(key); saveMeta(m); return true; } return false; }
 function getCredits(){ return loadMeta().credits||0; }
+function refreshCredits(){ // instantly reflect the current (local) credit total everywhere it's shown
+  try{ const cb=$('creditBal'); if(cb) cb.textContent='💳 '+getCredits()+' credits'; }catch(e){}
+  try{ if($('menu')&&getComputedStyle($('menu')).display!=='none') buildClassCards(); }catch(e){} // rebuilds cards + their credit-gated buy/upgrade buttons
+  try{ if(dev.open) renderAdmin(); }catch(e){} // dev panel live credit line
+}
 function abilityLevel(key){ return (loadMeta().abil||{})[key]||0; }
 // per-class progression that persists across runs (level/xp/skill points/skill allocation)
 function loadClassProg(cls){ const p=(loadMeta().classProg||{})[cls];
