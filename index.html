@@ -677,6 +677,7 @@ $('nameInput').addEventListener('change',()=>setMetaName($('nameInput').value));
 addEventListener('storage',e=>{ if(!e.key||e.key===META_KEY) refreshCores(); }); // another tab changed Bio-Cores → reflect here
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshCores(); }); // switched back to this tab → show current total
 addEventListener('focus',()=>refreshCores());
+addEventListener('load',()=>refreshCores()); // re-sync the saved Bio-Cores total once everything's initialized (guards against a stale 0 at first paint)
 renderLeaderboard(); renderChampions();
 if(hasSave()){ const sd=loadSaveData(); const cb=$('continueBtn'); cb.style.display='inline-block';
   cb.textContent='▶ Continue (Day '+(Math.floor((sd.survivalT||0)/DAY_LEN)+1)+' · Wave '+((sd.wave||0)+1)+')'; cb.onclick=continueGame; }
