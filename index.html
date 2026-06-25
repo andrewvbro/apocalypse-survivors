@@ -327,7 +327,7 @@
 <div id="menu">
   <h1>APOCALYPSE&nbsp;SURVIVORS</h1>
   <div class="tag">CO-OP TOP-DOWN SURVIVAL · CHOOSE YOUR CLASS · OUTLAST THE HORDE</div>
-  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 26 · 2026-06-25</div>
+  <div class="tag" id="verBadge" style="color:#5a6650;font-size:10px;margin-top:2px">build 27 · 2026-06-25</div>
   <div style="margin-top:6px"><button id="menuResetBtn" style="background:#2a1414;border:1px solid #5a2a2a;color:#e7a; border-radius:6px;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">↺ Reset progress (Bio-Cores, classes, abilities)</button></div>
 
   <div class="panel" id="classPanel">
@@ -615,14 +615,32 @@ const GUNS={
   dualpistols:{name:'Dual Pistols',dmg:15,rpm:640,mag:24, reserve:160, reload:1300, spread:.06, speed:800, range:520, pellets:1, auto:true, col:'#cfe0ff'},
   crossbow:{name:'Crossbow',     dmg:90, rpm:70,  mag:5,  reserve:40,  reload:1800, spread:.01, speed:780, range:720, pellets:1, auto:false,col:'#9fae7a'},
   flak:    {name:'Flak Cannon',  dmg:13, rpm:170, mag:8,  reserve:56,  reload:2200, spread:.22, speed:700, range:380, pellets:5, auto:true, col:'#ffb03a'},
+  handcannon:{name:'Hand Cannon',dmg:64, rpm:120, mag:8,  reserve:48,  reload:1600, spread:.03, speed:880, range:600, pellets:1, auto:false,col:'#e08a4b'},
+  pulserifle:{name:'Pulse Rifle',dmg:22, rpm:620, mag:28, reserve:168, reload:1700, spread:.04, speed:940, range:660, pellets:1, auto:true, col:'#7fffd0'},
+  gauss:   {name:'Gauss Cannon', dmg:115,rpm:60,  mag:5,  reserve:30,  reload:2400, spread:.01, speed:1300,range:920, pellets:1, auto:false,col:'#a0d0ff', thruStruct:true},
+  scattergun:{name:'Scatter Gun',dmg:10, rpm:260, mag:12, reserve:72,  reload:2000, spread:.20, speed:700, range:360, pellets:5, auto:true, col:'#ffa050'},
+  chaincannon:{name:'Chain Cannon',dmg:16,rpm:1500,mag:200,reserve:600, reload:3500, spread:.13, speed:880, range:600, pellets:1, auto:true, col:'#ff7070'},
 };
+// weapon rarity tiers — scale damage and tint the name; higher tiers drop deeper into runs
+const GUN_TIERS=[
+  {name:'Common',    mult:1.00, col:'#b9c2ad'},
+  {name:'Uncommon',  mult:1.30, col:'#7fce4b'},
+  {name:'Rare',      mult:1.65, col:'#5fa8ff'},
+  {name:'Epic',      mult:2.10, col:'#c07fff'},
+  {name:'Legendary', mult:2.70, col:'#ffb03a'},
+];
+function rollWeaponTier(){ const r=Math.random()*100 - Math.min(11,(wave||1)*1.2); // deeper waves shift toward higher tiers (capped so legendaries stay rare)
+  if(r<2) return 4; if(r<8) return 3; if(r<22) return 2; if(r<48) return 1; return 0; }
+function gunDisplayName(g){ const t=g&&g.tier||0; return (t>0?GUN_TIERS[t].name+' ':'')+(g?g.spec.name:''); }
+function gunTierCol(g){ return GUN_TIERS[(g&&g.tier)||0].col; }
 // secondary weapons everyone can swap to (slots 2,3)
 const SECONDARY={name:'Sidearm', dmg:14, rpm:300, mag:12, reserve:9999, reload:1000, spread:.05, speed:760, range:520, pellets:1, auto:false, col:'#cfd6c0'};
 const HEAVY_SEC={name:'Magnum', dmg:48, rpm:120, mag:6, reserve:9999, reload:1400, spread:.03, speed:820, range:600, pellets:1, auto:false, col:'#ff6b6b'};
 // starting melee weapon (everyone spawns with this, no gun) + random guns dropped by zombies
 const MELEE={name:'Machete', melee:true, dmg:34, rpm:170, range:62, arc:1.15, col:'#cfd6c0', mag:0, ammo:0, reserve:0, spread:0, pellets:0, speed:0, range_:0, auto:true};
 const WEAPON_DROPS=['pistol','pistol','smg','smg','shotgun','rifle','rifle','flamer','revolver','autoshotgun','lmg','marksman','minigun',
-  'vector','battlerifle','carbine','tommygun','sawedoff','plasma','dualpistols','crossbow','flak','carbine','vector','railgun'];
+  'vector','battlerifle','carbine','tommygun','sawedoff','plasma','dualpistols','crossbow','flak','carbine','vector','railgun',
+  'handcannon','pulserifle','gauss','scattergun','chaincannon','pulserifle','handcannon'];
 
 // =====================================================================
 // STATE
@@ -763,7 +781,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshC
 addEventListener('focus',()=>refreshCores());
 addEventListener('load',()=>refreshCores()); // re-sync the saved Bio-Cores total once everything's initialized (guards against a stale 0 at first paint)
 // build badge shows actual saved data, so stale-cache vs data issues are diagnosable at a glance
-function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 26 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
+function updateVerBadge(){ try{ const m=loadMeta(); const b=$('verBadge'); if(b) b.textContent='build 27 · 2026-06-25 · cs'+(m.cleanslate||0)+' unl'+((m.unlocked||[]).length)+' ab'+(Object.keys(m.abil||{}).length)+' ☣'+(m.cores||0); }catch(e){} }
 updateVerBadge();
 // visible manual reset (no dev panel / URL needed) — clears Bio-Cores, unlocks, abilities, save
 $('menuResetBtn').onclick=()=>{ resetProgress(); buildClassCards(); refreshCores(); updateVerBadge(); { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } try{toast('Progress reset — clean slate');}catch(e){} };
@@ -793,9 +811,9 @@ function applyClass(){
   me.guns=[ mkGun('melee',MELEE) ];
   me.gunIdx=0; me.abReady=0;
 }
-function mkGun(type,override){
-  const base=override||GUNS[type];
-  return { type, spec:base, mag:base.mag||0, ammo:base.mag||0, reserve:base.reserve||0, up:{dmg:0,rof:0,mag:0} };
+function mkGun(type,override,tier){
+  const base=override||GUNS[type]; tier=tier||0;
+  return { type, spec:base, tier, tierMul:(GUN_TIERS[tier]||GUN_TIERS[0]).mult, mag:base.mag||0, ammo:base.mag||0, reserve:base.reserve||0, up:{dmg:0,rof:0,mag:0} };
 }
 
 // =====================================================================
@@ -971,7 +989,7 @@ function hostSnap(t){
   if(!isHost||!net) return;
   if(t-lastSnap<90) return; lastSnap=t;
   const z=zombies.filter(z=>z.alive).slice(0,90).map(z=>[z.id,Math.round(z.x),Math.round(z.y),Math.round(z.hp),z.type]);
-  const pk=pickups.map(p=>[p.id,Math.round(p.x),Math.round(p.y),p.kind,p.wtype||0]);
+  const pk=pickups.map(p=>[p.id,Math.round(p.x),Math.round(p.y),p.kind,p.wtype||0,p.tier||0]);
   const st=structures.filter(s=>s.hp>0).map(s=>[s.id,s.key,Math.round(s.x),Math.round(s.y),Math.round(s.hp)]);
   net.send({t:'zsnap',z,pk,st,ea:enemiesAlive,wave,bm:isBloodMoon,gen:generator?Math.round(generator.hp):0});
 }
@@ -992,7 +1010,7 @@ function applyZSnap(msg){
   zombies=zombies.filter(z=>{ if(z.remote && !seen[z.id]){ z.alive=false; spawnDeathFx(z.x,z.y,z.color); return false; } return true; });
   // pickups
   const pseen={};
-  for(const a of (msg.pk||[])){ const [id,x,y,kind,wtype]=a; pseen[id]=1; if(!pickups.find(p=>p.id===id)) pickups.push({id,x,y,kind,wtype:wtype||undefined}); }
+  for(const a of (msg.pk||[])){ const [id,x,y,kind,wtype,tier]=a; pseen[id]=1; if(!pickups.find(p=>p.id===id)) pickups.push({id,x,y,kind,wtype:wtype||undefined,tier:tier||0}); }
   pickups=pickups.filter(p=>pseen[p.id]);
   refreshHud();
 }
@@ -1008,7 +1026,7 @@ function reload(){ const g=curGun(); if(!g||me.reloading||g.ammo>=g.mag||g.reser
 function meleeSwing(t){
   const g=curGun(); const rpm=g.spec.rpm*(1+0.08*((g.up&&g.up.rof)||0))*(me.rofMul||1);
   if(t-me.lastShot<60000/rpm) return; me.lastShot=t;
-  const dmg=g.spec.dmg*me.dmgMul*(now()<me.dmgBuffUntil?(me.sniperBuff||3):1);
+  const dmg=g.spec.dmg*me.dmgMul*(g.tierMul||1)*(now()<me.dmgBuffUntil?(me.sniperBuff||3):1);
   for(const z of zombies){ if(!z.alive) continue; const d=dist(me.x,me.y,z.x,z.y);
     if(d<g.spec.range+z.r){ let da=Math.abs(((Math.atan2(z.y-me.y,z.x-me.x)-me.aim+Math.PI)%TAU+TAU)%TAU-Math.PI);
       if(da<g.spec.arc){ if(isHost||soloMode()) damageZombie(z.id,dmg,me.id); else if(net) net.send({t:'zhit',zid:z.id,dmg}); spawnHitFx(z.x,z.y,z.color); } } }
@@ -1026,7 +1044,7 @@ function tryFire(t){
   if(t-me.lastShot<interval) return;
   me.lastShot=t; g.ammo--; if(dev.infAmmo){ g.ammo=g.mag; g.reserve=g.spec.reserve||g.reserve; } refreshHud();
   const pellets=g.spec.pellets;
-  const dmg=g.spec.dmg*me.dmgMul*(1+0.12*(g.up.dmg||0))*(now()<me.dmgBuffUntil?(me.sniperBuff||3):1);
+  const dmg=g.spec.dmg*me.dmgMul*(g.tierMul||1)*(1+0.12*(g.up.dmg||0))*(now()<me.dmgBuffUntil?(me.sniperBuff||3):1);
   const rngMul = now()<me.zoomUntil ? 5 : 1; // Overwatch: extend range so you can snipe across the zoomed-out view
   for(let i=0;i<pellets;i++){
     const sp=(Math.random()-0.5)*g.spec.spread*(pellets>1?1:1);
@@ -1448,10 +1466,10 @@ function killZombie(z,by){
   if(z.boss && (by===me.id||by===undefined) && unlockClass('magnet')){ me.skillPoints++; saveClassProg(); SFX.levelUp(); toast('🧲 First boss slain — Scrap Magnet unlocked! (+1 skill point, press K)',3000); }
   // drops
   if(z.boss){ pickups.push({id:zidSeq++,x:z.x,y:z.y,kind:'health'}); pickups.push({id:zidSeq++,x:z.x+22,y:z.y,kind:'scrap'}); pickups.push({id:zidSeq++,x:z.x-22,y:z.y,kind:'scrap'});
-    pickups.push({id:zidSeq++,x:z.x,y:z.y-22,kind:'weapon',wtype:WEAPON_DROPS[randi(0,WEAPON_DROPS.length-1)]}); }
+    pickups.push({id:zidSeq++,x:z.x,y:z.y-22,kind:'weapon',wtype:WEAPON_DROPS[randi(0,WEAPON_DROPS.length-1)],tier:Math.max(rollWeaponTier(),rollWeaponTier())}); } // bosses bias toward better gear
   else { if(Math.random()<0.18){ const kind=Math.random()<0.5?'ammo':'cash'; pickups.push({id:zidSeq++,x:z.x,y:z.y,kind}); }
          if(Math.random()<0.28){ pickups.push({id:zidSeq++,x:z.x,y:z.y,kind:'scrap'}); }
-         if(Math.random()<0.11){ pickups.push({id:zidSeq++,x:z.x,y:z.y,kind:'weapon',wtype:WEAPON_DROPS[randi(0,WEAPON_DROPS.length-1)]}); } }
+         if(Math.random()<0.11){ pickups.push({id:zidSeq++,x:z.x,y:z.y,kind:'weapon',wtype:WEAPON_DROPS[randi(0,WEAPON_DROPS.length-1)],tier:rollWeaponTier()}); } }
   refreshHud();
 }
 
@@ -1642,11 +1660,11 @@ function updatePickups(dt){
       else if(p.kind==='cash'){ me.cash+=25; toast('+$25'); }
       else if(p.kind==='health'){ me.hp=clamp(me.hp+50,0,me.maxhp); toast('+50 HP'); }
       else if(p.kind==='scrap'){ const a=Math.round(8*me.gainMul); me.scrap+=a; toast('+'+a+' scrap'); }
-      else if(p.kind==='weapon'){ const wt=p.wtype||'pistol'; const nm=(GUNS[wt]||{}).name||'Weapon';
-        const have=me.guns.find(g=>g.type===wt)||me.stash.find(g=>g.type===wt);
+      else if(p.kind==='weapon'){ const wt=p.wtype||'pistol'; const tier=p.tier||0; const nm=((tier>0?GUN_TIERS[tier].name+' ':'')+((GUNS[wt]||{}).name||'Weapon'));
+        const have=me.guns.find(g=>g.type===wt&&(g.tier||0)>=tier)||me.stash.find(g=>g.type===wt&&(g.tier||0)>=tier);
         if(have){ have.ammo=have.spec.mag; have.reserve=Math.min((have.reserve||0)+have.spec.mag*2,(have.spec.reserve||0)*3); toast(nm+' — ammo refilled'); }
-        else if(me.guns.length<GUN_CAP){ me.guns.push(mkGun(wt)); me.gunIdx=me.guns.length-1; me.reloading=0; toast('Picked up '+nm+'! [equipped]'); }
-        else { me.stash.push(mkGun(wt)); toast('Picked up '+nm+' → stored (press I)'); }   // loadout full → keep it in storage
+        else if(me.guns.length<GUN_CAP){ me.guns.push(mkGun(wt,null,tier)); me.gunIdx=me.guns.length-1; me.reloading=0; toast('Picked up '+nm+'! [equipped]'); }
+        else { me.stash.push(mkGun(wt,null,tier)); toast('Picked up '+nm+' → stored (press I)'); }   // loadout full → keep it in storage
         refreshHotbar(); }
       if(p.kind==='scrap') SFX.scrap(); else if(p.kind==='weapon') SFX.reload(); else SFX.pickup();
       if(net) net.send({t:'pickup',pid:p.id});
@@ -1916,12 +1934,12 @@ function drawWeapon(type){
       ctx.fillStyle='#2b241c'; ctx.fillRect(2,-2,7,4);            // handle
       ctx.fillStyle='#c8d0d6'; ctx.beginPath(); ctx.moveTo(9,-3); ctx.lineTo(26,-2); ctx.lineTo(28,1); ctx.lineTo(9,3); ctx.closePath(); ctx.fill(); // blade
       ctx.fillStyle='#9aa3aa'; ctx.fillRect(9,-1,15,1); break;
-    case 'rifle': case 'lmg': case 'marksman': case 'minigun': case 'battlerifle': case 'carbine': case 'plasma': case 'railgun': case 'crossbow':
+    case 'rifle': case 'lmg': case 'marksman': case 'minigun': case 'battlerifle': case 'carbine': case 'plasma': case 'railgun': case 'crossbow': case 'pulserifle': case 'gauss': case 'chaincannon':
       ctx.fillStyle='#3a3a3a'; ctx.fillRect(0,-2,6,4);          // stock
       ctx.fillStyle='#2b2b2b'; ctx.fillRect(4,-2.5,24,5);       // receiver + barrel
       ctx.fillStyle='#1c1c1c'; ctx.fillRect(8,2,5,8);           // magazine
       ctx.fillStyle=ac;        ctx.fillRect(25,-1.5,4,3); break;// muzzle accent
-    case 'shotgun': case 'autoshotgun': case 'sawedoff': case 'flak':
+    case 'shotgun': case 'autoshotgun': case 'sawedoff': case 'flak': case 'scattergun':
       ctx.fillStyle='#3a2e22'; ctx.fillRect(0,-3.5,11,7);       // wood stock
       ctx.fillStyle='#2b2b2b'; ctx.fillRect(9,-3.5,17,7);       // twin barrels
       ctx.fillStyle='#1c1c1c'; ctx.fillRect(14,3,8,3);          // pump
@@ -1987,7 +2005,7 @@ function drawBullet(b){ ctx.fillStyle=b.col; ctx.globalAlpha=b.flame?.8:1;
 }
 function drawPickup(p){ const x=p.x,y=p.y; const bob=Math.sin(now()*0.005+x)*3;
   ctx.fillStyle='rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(x,y+10,12,5,0,0,TAU); ctx.fill();
-  if(p.kind==='weapon'){ const wc=(GUNS[p.wtype]||{}).col||'#fff';
+  if(p.kind==='weapon'){ const wc=(p.tier?GUN_TIERS[p.tier].col:(GUNS[p.wtype]||{}).col)||'#fff';
     ctx.save(); ctx.translate(x,y+bob);
     ctx.fillStyle='#15191f'; ctx.beginPath(); ctx.arc(0,0,13,0,TAU); ctx.fill();
     ctx.strokeStyle=wc; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,13,0,TAU); ctx.stroke();
@@ -2043,9 +2061,9 @@ function refreshHud(){
       } else ub.style.display='none'; }
     const ubtn=$('ultBtn'); if(ubtn){ if(_isTouch&&(me.abLevel||0)>=3){ ubtn.style.display='flex'; ubtn.classList.toggle('ready', now()>=(me.ab2Ready||0)); } else ubtn.style.display='none'; } }
   const g=curGun(); if(g){
-    if(g.spec.melee){ $('hudGun').textContent=g.spec.name+' (1)'; $('hudAmmo').innerHTML='<span class="res">∞ melee</span>'; $('hudAmmo').classList.remove('low'); }
+    if(g.spec.melee){ $('hudGun').textContent=g.spec.name+' (1)'; $('hudGun').style.color=''; $('hudAmmo').innerHTML='<span class="res">∞ melee</span>'; $('hudAmmo').classList.remove('low'); }
     else { const reloading=me.reloading>0;
-      $('hudGun').textContent=(reloading?'RELOADING — ':'')+g.spec.name+(me.gunIdx>0?' (2)':' (1)');
+      $('hudGun').textContent=(reloading?'RELOADING — ':'')+gunDisplayName(g)+(me.gunIdx>0?' (2)':' (1)'); $('hudGun').style.color=gunTierCol(g);
       const res=g.spec.reserve>2000?'∞':g.reserve;
       const disp=reloading?0:g.ammo;
       $('hudAmmo').innerHTML=disp+'<span class="res"> / '+res+'</span>';
@@ -2056,7 +2074,7 @@ function refreshHud(){
 function refreshHotbar(){ const bar=$('hotbar'); if(!bar) return;
   if(!started||gameOver||buildMode){ bar.style.display='none'; return; } bar.style.display='flex';
   bar.innerHTML=me.guns.map((g,i)=>{ const ammo=g.spec.melee?'∞':((g.spec.reserve>2000?(g.ammo+' / ∞'):(g.ammo+' / '+g.reserve)));
-    return `<div class="hslot${i===me.gunIdx?' on':''}" data-i="${i}"><div class="hn">${g.spec.name}</div><div class="ha">${ammo}</div><div class="hk">[${i+1}]</div></div>`; }).join('');
+    return `<div class="hslot${i===me.gunIdx?' on':''}" data-i="${i}"><div class="hn" style="color:${gunTierCol(g)}">${gunDisplayName(g)}</div><div class="ha">${ammo}</div><div class="hk">[${i+1}]</div></div>`; }).join('');
   bar.querySelectorAll('.hslot').forEach(el=>el.onclick=()=>switchGun(+el.dataset.i));
 }
 let toasts=[];
@@ -2138,7 +2156,7 @@ function adminAct(a){ const m=loadMeta();
     case 'sp': me.skillPoints+=5; toast('DEV: +5 skill points'); break;
     case 'xp': gainXp(5000); toast('DEV: +5000 XP'); break;
     case 'heal': me.hp=me.maxhp; me.downed=false; me.dead=false; me.alive=true; if(generator)generator.hp=generator.maxhp; break;
-    case 'rweap': { const wt=WEAPON_DROPS[randi(0,WEAPON_DROPS.length-1)]; if(me.guns.length<GUN_CAP){ me.guns.push(mkGun(wt)); me.gunIdx=me.guns.length-1; } else { me.guns[1]=mkGun(wt); me.gunIdx=1; } toast('DEV: '+GUNS[wt].name); break; }
+    case 'rweap': { const wt=WEAPON_DROPS[randi(0,WEAPON_DROPS.length-1)], tr=randi(0,4); const ng=mkGun(wt,null,tr); if(me.guns.length<GUN_CAP){ me.guns.push(ng); me.gunIdx=me.guns.length-1; } else { me.guns[1]=ng; me.gunIdx=1; } toast('DEV: '+gunDisplayName(ng)); break; }
     case 'allweap': ['rifle','shotgun','smg','pistol','flamer','minigun'].forEach(wt=>{ if(!me.guns.find(g=>g.type===wt)&&me.guns.length<GUN_CAP) me.guns.push(mkGun(wt)); }); break;
     case 'clear': zombies.length=0; enemiesAlive=0; break;
     case 'spawn10': if(isHost||soloMode()){ for(let i=0;i<10;i++) spawnOne(); enemiesAlive+=10; } break;
@@ -2164,7 +2182,7 @@ function gunRow(g,i,where){ const melee=g.spec.melee, eq=(where==='load'&&i===me
   if(where==='load'){ btns=`<button class="buy" data-eq="${i}">${eq?'✓ held':'Hold'}</button>`+(melee?'':`<button class="buy" data-stash="${i}" style="border-color:#2e466a;color:#6fd6ff">▼ Store</button>`); }
   else { btns=`<button class="buy" data-take="${i}">▲ Equip</button><button class="buy" data-toss="${i}" style="border-color:#5a2020;color:#d8453a;min-width:auto">✕</button>`; }
   return `<div class="uprow"${eq?' style="border-color:var(--acc)"':''}><div class="si">${GUN_ICON(g)}</div>
-    <div class="sm"><div class="snm">${g.spec.name}${eq?' <span style="color:var(--acc)">[equipped]</span>':''}</div><div class="sd">${ammo}${ups}</div></div>
+    <div class="sm"><div class="snm" style="color:${gunTierCol(g)}">${gunDisplayName(g)}${eq?' <span style="color:var(--acc)">[equipped]</span>':''}</div><div class="sd">${ammo}${ups}</div></div>
     <div style="display:flex;gap:5px">${btns}</div></div>`;
 }
 function renderInventory(){
@@ -2291,8 +2309,8 @@ function saveGame(){
   if(net || !started || gameOver) return; // solo only
   const d={ v:1, cls:me.cls, name:me.name, diff, botCount,
     hp:me.hp, cash:me.cash, scrap:me.scrap, xp:me.xp, level:me.level, xpNext:me.xpNext, skillPoints:me.skillPoints, skills:me.skills,
-    gunIdx:me.gunIdx, guns:me.guns.map(g=>({type:g.type, up:g.up, mag:g.mag, ammo:g.ammo, reserve:g.reserve})),
-    stash:me.stash.map(g=>({type:g.type, up:g.up, mag:g.mag, ammo:g.ammo, reserve:g.reserve})),
+    gunIdx:me.gunIdx, guns:me.guns.map(g=>({type:g.type, tier:g.tier||0, up:g.up, mag:g.mag, ammo:g.ammo, reserve:g.reserve})),
+    stash:me.stash.map(g=>({type:g.type, tier:g.tier||0, up:g.up, mag:g.mag, ammo:g.ammo, reserve:g.reserve})),
     wave, survivalT, genHp:(generator?generator.hp:1500), structures: structures.map(s=>({key:s.key,x:s.x,y:s.y,hp:s.hp})) };
   try{ localStorage.setItem(SAVE_KEY, JSON.stringify(d)); }catch(e){}
 }
@@ -2303,7 +2321,7 @@ function continueGame(){
   applyClass();
   me.cash=d.cash||0; me.scrap=d.scrap||0; me.xp=d.xp||0; me.level=d.level||1; me.xpNext=d.xpNext||xpForLevel(me.level); me.skillPoints=d.skillPoints||0; me.skills=d.skills||{};
   applySkills(); me.abLevel=abilityLevel(me.cls); me.hp=clamp(d.hp||me.maxhp,1,me.maxhp);
-  const rebuildGun=sg=>{ const g=(sg.type==='melee')?mkGun('melee',MELEE):mkGun(sg.type); g.up=sg.up||{dmg:0,rof:0,mag:0}; if(sg.mag)g.mag=sg.mag; if(sg.ammo!=null)g.ammo=sg.ammo; if(sg.reserve!=null)g.reserve=sg.reserve; return g; };
+  const rebuildGun=sg=>{ const g=(sg.type==='melee')?mkGun('melee',MELEE):mkGun(sg.type,null,sg.tier||0); g.up=sg.up||{dmg:0,rof:0,mag:0}; if(sg.mag)g.mag=sg.mag; if(sg.ammo!=null)g.ammo=sg.ammo; if(sg.reserve!=null)g.reserve=sg.reserve; return g; };
   if(d.guns&&d.guns.length){ me.guns=d.guns.map(rebuildGun); }
   me.stash=(d.stash||[]).map(rebuildGun);
   me.gunIdx=d.gunIdx||0;
