@@ -296,6 +296,7 @@
       <button class="btn primary" id="continueBtn" style="display:none">▶ Continue</button>
       <button class="btn primary" id="soloBtn">▶ Play Solo</button>
       <button class="btn" id="hostBtn">👥 Host Co-op</button>
+      <button class="btn" id="hostPublicBtn">🌐 Host Public</button>
       <button class="btn alt" id="browseBtn">🌐 Public Servers</button>
       <button class="btn alt" id="joinToggle">🔗 Join a friend</button>
     </div>
@@ -641,6 +642,7 @@ if(hasSave()){ const sd=loadSaveData(); const cb=$('continueBtn'); cb.style.disp
 $('joinToggle').onclick=()=>{ const r=$('joinRow'); r.style.display=r.style.display==='none'?'flex':'none'; };
 $('soloBtn').onclick=()=>startGame({mode:'solo'});
 $('hostBtn').onclick=()=>hostGame();
+$('hostPublicBtn').onclick=()=>hostGame(true);
 $('browseBtn').onclick=()=>openServerList();
 $('srClose').onclick=()=>$('serverList').style.display='none';
 $('srRefresh').onclick=()=>openServerList();
@@ -728,7 +730,7 @@ function renderServerList(data){ const box=$('serverListBox'); const now=Date.no
   list.sort((a,b)=>(b.ts||0)-(a.ts||0));
   box.innerHTML=list.map(s=>`<div class="srow"><div><b>${esc(s.name||'Host')}</b> <span class="det">${s.hard?'☠ Hard · ':''}Day ${s.day||1} · Wave ${s.wave||0} · ${s.players||1}p${s.started?' · in progress':''}</span></div><button class="buy" data-code="${esc(s.code)}">Join</button></div>`).join('');
   box.querySelectorAll('[data-code]').forEach(b=>b.onclick=()=>{ $('serverList').style.display='none'; $('joinRow').style.display='flex'; $('joinCode').value=b.dataset.code; joinGame(b.dataset.code); }); }
-function hostGame(){
+function hostGame(forcePublic){
   isHost=true; const code=genCode();
   $('lobby').style.display='block'; $('roomcode').textContent=code;
   const link=location.origin+location.pathname+'?room='+code;
@@ -736,8 +738,8 @@ function hostGame(){
   $('copyInvite').onclick=()=>{ navigator.clipboard.writeText(link).then(()=>toast('Invite link copied')); };
   $('startBtn').style.display='inline-block';
   $('startBtn').onclick=()=>{ net.broadcast({t:'start',from:me.id}); startGame({mode:'host'}); lobbyPush(); };
-  const pub=$('publicHost') && $('publicHost').checked;
-  startNet(true,code).then(()=>{ updateLobby(); if(pub){ lobbyRegister(code); $('lobbyHint').textContent='Listed on Public Servers. Share the code/link, or wait for players.'; } }).catch(e=>menuErr(e.message));
+  const pub=forcePublic || ($('publicHost') && $('publicHost').checked);
+  startNet(true,code).then(()=>{ updateLobby(); if(pub){ lobbyRegister(code); $('lobbyHint').textContent='🌐 Listed on Public Servers — anyone can join. Or share the code/link.'; } }).catch(e=>menuErr(e.message));
 }
 function joinGame(code){
   isHost=false; menuErr('Connecting…');
