@@ -283,7 +283,7 @@
   <div class="tag">CO-OP TOP-DOWN SURVIVAL · CHOOSE YOUR CLASS · OUTLAST THE HORDE</div>
 
   <div class="panel" id="classPanel">
-    <h2>Pick your class <span id="creditBal" style="float:right;color:#ffe27a;font-size:13px">💳 0 credits</span></h2>
+    <h2>Pick your class <span id="coreBal" style="float:right;color:#ffe27a;font-size:13px">☣ 0 Bio-Cores</span></h2>
     <div class="classgrid" id="classGrid"></div>
   </div>
 
@@ -401,7 +401,7 @@ addEventListener('pointerdown',()=>{ SFX.init(); SFX.resume(); });
 addEventListener('keydown',()=>{ SFX.init(); SFX.resume(); });
 // storage self-test — warns if localStorage can't persist (private mode / blocked site data)
 (function(){ try{ localStorage.setItem('__apoctest','1'); const ok=localStorage.getItem('__apoctest')==='1'; localStorage.removeItem('__apoctest'); if(!ok) throw 0; }
-  catch(e){ addEventListener('load',()=>setTimeout(()=>{ try{toast('⚠ Browser storage is OFF — credits, unlocks & saves won\'t persist. Exit private mode or allow site data.');}catch(_){} },1800)); } })();
+  catch(e){ addEventListener('load',()=>setTimeout(()=>{ try{toast('⚠ Browser storage is OFF — Bio-Cores, unlocks & saves won\'t persist. Exit private mode or allow site data.');}catch(_){} },1800)); } })();
 if('serviceWorker' in navigator){
   let _swReloaded=false;
   navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(_swReloaded)return; _swReloaded=true; location.reload(); }); // auto-load new version
@@ -499,12 +499,12 @@ const CLASSES={
     stats:{Power:5,Speed:3,Health:5} },
   berserker:{ name:'Berserker', role:'★ Buyable · bruiser', color:'#c0432f', icon:'🪓', buy:25, gun:'shotgun',
     hp:175, speed:188,
-    desc:'Buy with credits earned across runs. Tanky and fast, with a Bloodlust surge that heals you and supercharges your attacks.',
+    desc:'Buy with Bio-Cores earned across runs. Tanky and fast, with a Bloodlust surge that heals you and supercharges your attacks.',
     abName:'Bloodlust', abDesc:'Heal + speed + fire-rate', abCd:11000, abDur:5000,
     stats:{Power:4,Speed:5,Health:4} },
   sniper:{ name:'Sniper', role:'★ Buyable · marksman', color:'#4f8de6', icon:'🎯', buy:30, gun:'rifle',
     hp:95, speed:160,
-    desc:'Buy with credits. Fragile but lethal — Overwatch zooms the camera out and triples your damage so you can pick off major threats across the map.',
+    desc:'Buy with Bio-Cores. Fragile but lethal — Overwatch zooms the camera out and triples your damage so you can pick off major threats across the map.',
     abName:'Overwatch', abDesc:'Zoom out + ×3 damage', abCd:14000, abDur:7000,
     stats:{Power:5,Speed:3,Health:2} },
 };
@@ -624,12 +624,12 @@ function setupTouch(){
 // =====================================================================
 let selectedClass='soldier';
 function buildClassCards(){
-  const cb=$('creditBal'); if(cb) cb.textContent='💳 '+getCredits()+' credits';
+  const cb=$('coreBal'); if(cb) cb.textContent='☣ '+getCores()+' Bio-Cores';
   const g=$('classGrid'); g.innerHTML='';
   for(const key of CLASS_KEYS){
     const c=CLASSES[key]; const locked=(c.special||c.buy)&&!isUnlocked(key);
-    const lockMsg = locked ? (c.buy ? (c.special?'Buy with credits, or finish monthly Top 3':'Buy with credits') : 'Finish monthly Top 3 to unlock') : '';
-    const canBuy = locked && c.buy && getCredits()>=c.buy;
+    const lockMsg = locked ? (c.buy ? (c.special?'Buy with Bio-Cores, or finish monthly Top 3':'Buy with Bio-Cores') : 'Finish monthly Top 3 to unlock') : '';
+    const canBuy = locked && c.buy && getCores()>=c.buy;
     const d=document.createElement('div'); d.className='ccard'+(key===selectedClass?' sel':'')+(locked?' locked':''); d.dataset.k=key;
     d.innerHTML=`<div class="cname"><span class="ico" style="background:${c.color}22;border:1px solid ${c.color}">${c.icon}</span>${c.name}${locked?' <span class="lock">🔒</span>':''}</div>
       <div class="crole">${c.role}</div>
@@ -637,9 +637,9 @@ function buildClassCards(){
       <div class="cab">★ ${c.abName} — ${c.abDesc}</div>
       ${Object.entries(c.stats).map(([k,v])=>`<div class="stat"><span style="width:46px">${k}</span><span class="sb"><i style="width:${v/5*100}%"></i></span></div>`).join('')}
       ${locked?`<div class="lockmsg">${lockMsg}</div>`:''}
-      ${locked&&c.buy?`<button class="buybtn${canBuy?'':' broke'}" data-buy="${key}">Buy — ${c.buy} cr</button>`:''}
-      ${!locked?(()=>{ const al=abilityLevel(key), cost=20*(al+1), aff=getCredits()>=cost;
-        return `<div class="abup"><span>Ability Lv ${al}/3</span><button class="abupbtn${aff||al>=3?'':' broke'}" data-abup="${key}">${al>=3?'MAX':('▲ '+cost+' cr')}</button></div>`; })():''}`;
+      ${locked&&c.buy?`<button class="buybtn${canBuy?'':' broke'}" data-buy="${key}">Buy — ${c.buy} ☣</button>`:''}
+      ${!locked?(()=>{ const al=abilityLevel(key), cost=20*(al+1), aff=getCores()>=cost;
+        return `<div class="abup"><span>Ability Lv ${al}/3</span><button class="abupbtn${aff||al>=3?'':' broke'}" data-abup="${key}">${al>=3?'MAX':('▲ '+cost+' ☣')}</button></div>`; })():''}`;
     d.onclick=()=>{ if(locked){ toast(c.buy?('Locked — '+lockMsg):'Locked — finish in the monthly Top 3'); return; }
       selectedClass=key; document.querySelectorAll('.ccard').forEach(x=>x.classList.remove('sel')); d.classList.add('sel'); };
     const bb=d.querySelector('.buybtn'); if(bb) bb.onclick=(e)=>{ e.stopPropagation(); buyClass(key); };
@@ -657,18 +657,18 @@ buildClassCards();
 { let nm=''; try{ nm=localStorage.getItem('apocsurv_name')||''; }catch(e){}
   $('nameInput').value = nm || ('Survivor'+randi(1,99)); }
 if(devUnlocked()) $('nameInput').value='ADMIN'; // developers play as ADMIN
-if(/[?&]reset(=|&|$)/i.test(location.search)){ // one-click reset link: .../?reset — wipes credits/unlocks/abilities (local + cloud) with no dev panel needed
+if(/[?&]reset(=|&|$)/i.test(location.search)){ // one-click reset link: .../?reset — wipes Bio-Cores/unlocks/abilities (local + cloud) with no dev panel needed
   resetProgress();
   try{ history.replaceState(null,'',location.pathname); }catch(e){} // strip ?reset so a refresh doesn't keep wiping
-  buildClassCards(); if($('creditBal')) $('creditBal').textContent='💳 '+getCredits()+' credits';
+  buildClassCards(); if($('coreBal')) $('coreBal').textContent='☣ '+getCores()+' Bio-Cores';
   { const cb=$('continueBtn'); if(cb) cb.style.display='none'; } // saved run wiped too
-  try{ toast('Full reset — all stats, items & classes cleared (credits 0, special classes locked)'); }catch(e){}
-} else setMetaName($('nameInput').value); // pull this player's cloud progress (credits/unlocks) by name
+  try{ toast('Full reset — all stats, items & classes cleared (Bio-Cores 0, special classes locked)'); }catch(e){}
+} else setMetaName($('nameInput').value); // remember the player name
 $('nameInput').addEventListener('change',()=>setMetaName($('nameInput').value)); // re-sync when they rename
-// keep credits consistent across multiple open tabs / when returning to a tab (storage is shared; each tab only drew its menu once at load)
-addEventListener('storage',e=>{ if(!e.key||e.key===META_KEY) refreshCredits(); }); // another tab changed credits → reflect here
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshCredits(); }); // switched back to this tab → show current total
-addEventListener('focus',()=>refreshCredits());
+// keep Bio-Cores consistent across multiple open tabs / when returning to a tab (storage is shared; each tab only drew its menu once at load)
+addEventListener('storage',e=>{ if(!e.key||e.key===META_KEY) refreshCores(); }); // another tab changed Bio-Cores → reflect here
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshCores(); }); // switched back to this tab → show current total
+addEventListener('focus',()=>refreshCores());
 renderLeaderboard(); renderChampions();
 if(hasSave()){ const sd=loadSaveData(); const cb=$('continueBtn'); cb.style.display='inline-block';
   cb.textContent='▶ Continue (Day '+(Math.floor((sd.survivalT||0)/DAY_LEN)+1)+' · Wave '+((sd.wave||0)+1)+')'; cb.onclick=continueGame; }
@@ -705,7 +705,7 @@ function mkGun(type,override){
 // =====================================================================
 function startGame(opts){
   me.cls=selectedClass; me.name=($('nameInput').value||'Survivor').slice(0,12);
-  setMetaName(me.name); // make sure credits earned this run sync to the right cloud key
+  setMetaName(me.name); // remember the player name for this run
   { const m=loadMeta(); m.lastClass=me.cls; saveMeta(m); } // persist class choice
   diff=parseFloat($('diffSelect').value); botCount=parseInt($('botSelect').value); hardMode=diff>=1.8;
   applyClass();
@@ -980,7 +980,7 @@ function useAbility(){
 // Ultimate — unlocked once a class's ability is fully upgraded (Lv 3). Key Q.
 function useAbility2(){
   if(!started||!me.alive||me.downed||me.dead) return;
-  if((me.abLevel||0)<3){ toast('Max your class ability (credits, on the menu) to unlock the Ultimate'); return; }
+  if((me.abLevel||0)<3){ toast('Max your class ability (Bio-Cores, on the menu) to unlock the Ultimate'); return; }
   const t=now(); if(t<(me.ab2Ready||0)){ toast('Ultimate: '+(((me.ab2Ready-t)/1000).toFixed(0))+'s'); return; }
   me.ab2Ready=t+25000;
   const R=320, dm=220*(1+0.25*me.abLevel);
@@ -1294,7 +1294,7 @@ function killZombie(z,by){
     if(net&&isHost) net.send({t:'firehaz',x:Math.round(z.x),y:Math.round(z.y),r:90,dur:1200,dmg:22}); }
   // toxic leaves a gas cloud
   if(z.gas){ hazards.push({x:z.x,y:z.y,r:80,until:now()+5000,dmg:16}); }
-  // credit the killer (me / ally bot / remote player)
+  // attribute the kill to the killer (me / ally bot / remote player)
   if(by===me.id||by===undefined){ me.kills++; me.cash+=Math.round(s.cash*me.gainMul); me.scrap+=Math.max(1,Math.round(s.score*0.7*me.gainMul)); gainXp(s.score*12); }
   else { const b=bots.find(b=>b.id===by);
     if(b){ b.kills++; }
@@ -1566,8 +1566,8 @@ function updateWaves(dt){
   if(spawnQueue<=0 && zombies.filter(z=>z.alive).length===0){ waveActive=false;
     const reward=(50+wave*10)*(isBloodMoon?2:1); me.cash+=reward;
     const waveXp=Math.round((50+wave*20)*(isBloodMoon?2:1)); gainXp(waveXp);
-    const cr=Math.max(1,Math.round(wave*1.5)*(isBloodMoon?2:1)); // bank credits every wave (persists immediately)
-    { const mm=loadMeta(); mm.credits=(mm.credits||0)+cr; saveMeta(mm); }
+    const cr=Math.max(1,Math.round(wave*1.5)*(isBloodMoon?2:1)); // bank Bio-Cores every wave (persists immediately)
+    { const mm=loadMeta(); mm.cores=(mm.cores||0)+cr; saveMeta(mm); }
     isBloodMoon=false; $('bloodmoon').classList.remove('on');
     toast('Wave '+wave+' cleared! +$'+reward+' · +'+waveXp+' XP · +'+cr+' 💳',1800);
     scheduleNextWave(7000); saveGame(); saveClassProg(); banner('WAVE CLEARED','Build up — next wave in 7s'); setTimeout(hideBanner,1900); refreshHud(); }
@@ -1944,7 +1944,7 @@ function renderAdmin(){
   const tog=(label,key)=>`<button class="abtn${dev[key]?' on':''}" data-tog="${key}">${label}: <b>${dev[key]?'ON':'OFF'}</b></button>`;
   const act=(label,id)=>`<button class="abtn" data-act="${id}">${label}</button>`;
   $('admin').innerHTML=`<div class="ahead">🛠 DEV PANEL<span data-act="close" class="aclose">✕</span></div>
-    <div style="font-size:11px;color:#9fb0c0;margin-bottom:6px;line-height:1.5">💳 ${getCredits()} credits · 💵 $${me.cash||0} · ⚙ ${me.scrap||0} scrap<br><span style="color:#7f8a72">credits are spent on the class-select screen</span></div>
+    <div style="font-size:11px;color:#9fb0c0;margin-bottom:6px;line-height:1.5">☣ ${getCores()} Bio-Cores · 💵 $${me.cash||0} · ⚙ ${me.scrap||0} scrap<br><span style="color:#7f8a72">Bio-Cores are spent on the class-select screen</span></div>
     <div class="agrp">Cheats</div>${tog('God mode','god')}${tog('Infinite ammo','infAmmo')}${tog('One-shot kills','oneShot')}${tog('Invincible generator','godGen')}
     <div class="agrp">Give</div>${act('+$1000','cash')}${act('+500 scrap','scrap')}${act('+5 skill pts','sp')}${act('+5000 XP','xp')}${act('Full heal','heal')}
     <div class="agrp">Weapons</div>${act('Random weapon','rweap')}${act('All weapons','allweap')}
@@ -1972,13 +1972,13 @@ function adminAct(a){ const m=loadMeta();
     case 'maxabil': m.abil={}; CLASS_KEYS.forEach(k=>m.abil[k]=3); saveMeta(m); me.abLevel=3; if($('menu').style.display!=='none') buildClassCards(); toast('Ability levels maxed'); break;
     case 'genheal': if(generator) generator.hp=generator.maxhp; toast('Generator repaired'); break;
     case 'wipe': localStorage.removeItem('apocsurv_meta'); localStorage.removeItem('apocsurv_save'); localStorage.removeItem('apocsurv_scores'); toast('Cleared meta/save/scores'); break;
-    case 'resetprog': { // full clean slate: credits/unlocks/abilities/saved run/local scores (local + cloud), keep dev access & global leaderboard
+    case 'resetprog': { // full clean slate: Bio-Cores/unlocks/abilities/saved run/local scores (local + cloud), keep dev access & global leaderboard
       resetProgress();
       me.abLevel=0; if($('menu').style.display!=='none') buildClassCards();
       { const cb=$('continueBtn'); if(cb) cb.style.display='none'; }
       toast('Full reset — stats, items & classes cleared (local + cloud)'); break; }
   }
-  refreshCredits(); // instant credit display update (menu total, class cards, dev panel)
+  refreshCores(); // instant Bio-Cores display update (menu total, class cards, dev panel)
   refreshHud();
 }
 function renderPanel(id){ if(id==='skills') renderSkills(); else if(id==='upgrade') renderUpgrade(); else if(id==='inv') renderInventory(); }
@@ -2049,9 +2049,9 @@ function saveMeta(m){ _metaMem=JSON.parse(JSON.stringify(m)); // always keep it 
 // ---- progress is stored locally (localStorage). Cloud sync was removed: its "never lose / merge" design resurrected
 //      reset profiles and needed extra DB rules. Local-only is reliable and a reset stays a reset. ----
 function setMetaName(name){ try{ localStorage.setItem('apocsurv_name', name); }catch(e){} } // just remember the name
-function resetProgress(){ // FULL clean slate: credits/unlocks/abilities/per-class progress + saved run (weapons/stash/level/stats) + local scores
+function resetProgress(){ // FULL clean slate: Bio-Cores/unlocks/abilities/per-class progress + saved run (weapons/stash/level/stats) + local scores
   _metaMem={};
-  try{ localStorage.setItem(META_KEY,'{}'); }catch(e){}            // credits, unlocked classes, ability levels, classProg, champions, lastClass
+  try{ localStorage.setItem(META_KEY,'{}'); }catch(e){}            // Bio-Cores, unlocked classes, ability levels, classProg, champions, lastClass
   try{ localStorage.removeItem('apocsurv_save'); }catch(e){}       // in-progress run: weapons, stash, level, skills, cash, scrap
   try{ localStorage.removeItem('apocsurv_scores'); }catch(e){}     // local high scores
 }
@@ -2060,11 +2060,11 @@ function monthName(key){ const [y,mo]=(key||monthKey()).split('-'); return new D
 function isUnlocked(key){ const c=CLASSES[key]; if(!c||!(c.special||c.buy)) return true; return (loadMeta().unlocked||[]).includes(key); }
 function metaHas(key){ return (loadMeta().unlocked||[]).includes(key); }
 function unlockClass(key){ const m=loadMeta(); m.unlocked=m.unlocked||[]; if(!m.unlocked.includes(key)){ m.unlocked.push(key); saveMeta(m); return true; } return false; }
-function getCredits(){ return loadMeta().credits||0; }
-function refreshCredits(){ // instantly reflect the current (local) credit total everywhere it's shown
-  try{ const cb=$('creditBal'); if(cb) cb.textContent='💳 '+getCredits()+' credits'; }catch(e){}
-  try{ if($('menu')&&getComputedStyle($('menu')).display!=='none') buildClassCards(); }catch(e){} // rebuilds cards + their credit-gated buy/upgrade buttons
-  try{ if(dev.open) renderAdmin(); }catch(e){} // dev panel live credit line
+function getCores(){ return loadMeta().cores||0; }
+function refreshCores(){ // instantly reflect the current (local) Bio-Cores total everywhere it's shown
+  try{ const cb=$('coreBal'); if(cb) cb.textContent='☣ '+getCores()+' Bio-Cores'; }catch(e){}
+  try{ if($('menu')&&getComputedStyle($('menu')).display!=='none') buildClassCards(); }catch(e){} // rebuilds cards + their Bio-Cores-gated buy/upgrade buttons
+  try{ if(dev.open) renderAdmin(); }catch(e){} // dev panel live Bio-Cores line
 }
 function abilityLevel(key){ return (loadMeta().abil||{})[key]||0; }
 // per-class progression that persists across runs (level/xp/skill points/skill allocation)
@@ -2075,12 +2075,12 @@ function saveClassProg(){ if(!me.cls) return; const m=loadMeta(); m.classProg=m.
   m.classProg[me.cls]={level:me.level, xp:me.xp, xpNext:me.xpNext, sp:me.skillPoints, skills:me.skills}; saveMeta(m); }
 function classLevel(cls){ return loadClassProg(cls).level; }
 function buyAbilityUp(key){ const lvl=abilityLevel(key); if(lvl>=3){ toast('Ability maxed'); return; } const cost=20*(lvl+1);
-  if(getCredits()<cost){ toast('Need '+cost+' credits'); return; }
-  const m=loadMeta(); m.credits=(m.credits||0)-cost; m.abil=m.abil||{}; m.abil[key]=lvl+1; saveMeta(m);
+  if(getCores()<cost){ toast('Need '+cost+' Bio-Cores'); return; }
+  const m=loadMeta(); m.cores=(m.cores||0)-cost; m.abil=m.abil||{}; m.abil[key]=lvl+1; saveMeta(m);
   SFX.levelUp(); toast(CLASSES[key].name+' ability → Lv '+(lvl+1)); buildClassCards(); }
 function buyClass(key){ const c=CLASSES[key]; if(!c||!c.buy||isUnlocked(key)) return;
-  if(getCredits()<c.buy){ toast('Need '+c.buy+' credits'); return; }
-  const m=loadMeta(); m.credits=(m.credits||0)-c.buy; m.unlocked=m.unlocked||[]; m.unlocked.push(key); saveMeta(m);
+  if(getCores()<c.buy){ toast('Need '+c.buy+' Bio-Cores'); return; }
+  const m=loadMeta(); m.cores=(m.cores||0)-c.buy; m.unlocked=m.unlocked||[]; m.unlocked.push(key); saveMeta(m);
   selectedClass=key; SFX.levelUp(); toast(c.name+' unlocked!'); buildClassCards(); renderChampions(); }
 // at each month rollover, crown the previous month's top 3 and grant the special class
 function refreshChampions(){ const m=loadMeta(), cur=monthKey(), scores=loadScores();
@@ -2163,8 +2163,8 @@ function doGameOver(victory){
   const entry={name:me.name,cls:me.cls,wave,kills:me.kills,cash:me.cash,days,score,ts:Date.now()};
   const top=saveScore(entry); postGlobalScore(entry); // local + global leaderboard
   const rank=top.findIndex(e=>e.score===score)+1;
-  // earn persistent credits for buying classes
-  const earned=Math.floor(score/200); { const m=loadMeta(); m.credits=(m.credits||0)+earned; saveMeta(m); }
+  // earn persistent Bio-Cores for buying classes
+  const earned=Math.floor(score/200); { const m=loadMeta(); m.cores=(m.cores||0)+earned; saveMeta(m); }
   // top-3 finish crowns you a Champion and unlocks the special class
   if(rank>=1&&rank<=3){ const m=loadMeta(); m.champions=top.slice(0,3).map(e=>e.name); saveMeta(m); unlockClass('revenant'); }
   banner(victory?'VICTORY':'YOU DIED','Survived '+days+(days===1?' day':' days')+' · Wave '+wave+' · '+me.kills+' kills · Score '+score.toLocaleString()+(rank>0?(' · 🏆 #'+rank):''));
@@ -2172,7 +2172,7 @@ function doGameOver(victory){
     const rows=top.slice(0,5).map((e,i)=>`<div style="display:flex;justify-content:space-between;gap:16px;font-size:13px;padding:2px 0;${e.score===score?'color:var(--acc)':''}"><span>#${i+1} ${esc(e.name)}</span><span>${e.score.toLocaleString()}</span></div>`).join('');
     b.innerHTML+=`<div style="margin:14px auto 0;max-width:300px;text-align:left;background:rgba(8,11,8,.55);border:1px solid #2a3324;border-radius:8px;padding:10px 14px">
       <div style="color:var(--acc2);font-size:12px;letter-spacing:1px;margin-bottom:4px">🏆 HIGH SCORES</div>${rows}</div>`
-      + `<div style="margin-top:10px;color:#ffe27a">💳 +${earned} credits earned (buy classes on the menu)</div>`
+      + `<div style="margin-top:10px;color:#ffe27a">☣ +${earned} Bio-Cores earned (buy classes on the menu)</div>`
       + (rank>=1&&rank<=3?`<div style="margin-top:6px;color:#ff5a4a;font-weight:bold">💀 Top 3 Champion! Revenant class unlocked.</div>`:'')
       + `<div style="margin-top:16px"><button class="btn primary" id="againBtn" style="pointer-events:auto">↻ Play again</button></div>`;
     $('hud').style.pointerEvents='auto'; $('againBtn').onclick=()=>location.reload(); },1400);

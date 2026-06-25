@@ -35,7 +35,7 @@ No one around? Set **Bots** to 1–3 and fight alongside the AI.
 - You spawn with only a **machete**. Zombies **drop guns** — pick them up and they go in your **inventory** (hotbar at the bottom). You keep every weapon you find and switch freely.
 - Defend the **⚡ generator** at the center of the compound. **If it's destroyed, you lose.**
 - Spend **cash** in the build menu on **walls, barricades, spikes, turrets, and repair drones**. Spend **scrap** at the **upgrade bench** to level your weapons.
-- Earn **XP** to level up and bank **skill points**; survive runs to earn **credits** that unlock & upgrade classes between games.
+- Earn **XP** to level up and bank **skill points**; survive runs to earn **Bio-Cores** that unlock & upgrade classes between games.
 - Every **4th wave** is a 🌑 **Blood Moon** (bigger, nastier horde). Every **10th wave** is a 👹 **Boss Fight** against scaling Behemoths.
 
 ## 🧟 Features
@@ -44,7 +44,7 @@ No one around? Set **Bots** to 1–3 and fight alongside the AI.
 - **Weapon scavenging + inventory** — machete start, 6 firearm types dropped by zombies, kept in a switchable hotbar, upgradable with scrap.
 - **10 zombie variants** — walker, runner, crawler, brute, armored, spitter, toxic, leaper, screamer, exploder — and the **Behemoth** boss.
 - **Base building** — grid-snapped walls/spikes/turrets, auto-repair drones, a delete tool, and the generator objective.
-- **Progression** — XP & levels, a 7-skill tree (incl. a boss-locked Scrap Magnet), persistent credits, buyable classes, and per-class ability upgrades.
+- **Progression** — XP & levels, a 7-skill tree (incl. a boss-locked Scrap Magnet), persistent Bio-Cores, buyable classes, and per-class ability upgrades.
 - **Co-op** — WebRTC peer-to-peer, downed/revive (a teammate can pick you up), AI ally bots.
 - **Atmosphere** — a very dense forest beyond the border, blood-moon overlay, a day counter, full procedural audio, and a local high-score leaderboard with monthly champions.
 
